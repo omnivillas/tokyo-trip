@@ -3,442 +3,929 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tokyo Family Weekend</title>
+<meta name="theme-color" content="#1b2130" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tokyo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <script src="vendor/leaflet/leaflet.js"></script>
-<style>:root{color-scheme:light dark}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Tokyo Family Weekend</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <style>
-/* Layout: two-pane planner. Left: day tabs + itinerary list with pick controls. Right: schematic to-scale map, hotel at the centre, pins numbered to match the list. Stacks on phones. */
+/* Layout: a four-view phone app (Now, Plan, Map, Essentials). On wide screens Plan shows list + timeline side by side. */
 :root{
   --bg:#f3f4f6; --paper:#ffffff; --fg:#1b2130; --muted:#5f6778; --line:#d9dde6;
   --ink:#2a4a8c; --ink-soft:#e4ebf8; --yes:#cc3d2a; --yes-soft:#fbe6e2; --maybe:#b8780f; --maybe-soft:#fbefd4; --no:#8a8f9c;
-  --display:"Shippori Mincho B1",Georgia,serif; --body:"Zen Kaku Gothic New",system-ui,-apple-system,sans-serif;
+  --ok:#2f7d4f; --ok-soft:#e2f3e8;
+  --display:"Shippori Mincho B1",Georgia,serif; --body:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif;
+  color-scheme:light dark;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#141821; --paper:#1c212c; --fg:#e8eaf0; --muted:#a0a7b8; --line:#2d3442;
-  --ink:#8fa9e8; --ink-soft:#232d44; --yes:#ff7a66; --yes-soft:#3a1f1b; --maybe:#e8b45a; --maybe-soft:#3a2d14; --no:#6e7380; color-scheme:dark}}
+  --ink:#8fa9e8; --ink-soft:#232d44; --yes:#ff7a66; --yes-soft:#3a1f1b; --maybe:#e8b45a; --maybe-soft:#3a2d14; --no:#6e7380; --ok:#6cc48f; --ok-soft:#1d3327}}
 :root[data-theme="dark"]{
   --bg:#141821; --paper:#1c212c; --fg:#e8eaf0; --muted:#a0a7b8; --line:#2d3442;
-  --ink:#8fa9e8; --ink-soft:#232d44; --yes:#ff7a66; --yes-soft:#3a1f1b; --maybe:#e8b45a; --maybe-soft:#3a2d14; --no:#6e7380; color-scheme:dark}
+  --ink:#8fa9e8; --ink-soft:#232d44; --yes:#ff7a66; --yes-soft:#3a1f1b; --maybe:#e8b45a; --maybe-soft:#3a2d14; --no:#6e7380; --ok:#6cc48f; --ok-soft:#1d3327}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;margin:0;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 24px}
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(84px + env(safe-area-inset-bottom,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 a{color:var(--ink)}
-h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,34px);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:-.01em}
-.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;padding-block:22px 12px;max-width:1240px;margin:0 auto}
-.top p{margin:4px 0 0;color:var(--muted);max-width:60ch}
-.tally{display:flex;gap:8px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
-.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:500;border:1px solid var(--line);background:var(--paper)}
-.pill b{font-weight:700}
+button{font:inherit}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(22px,4vw,30px);line-height:1.1;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--display);font-size:17px;margin:0 0 4px;font-weight:600}
+.wrapper{max-width:1240px;margin:0 auto}
+.top{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title clock" "status clock";align-items:end;column-gap:12px;padding-block:14px 8px}
+.top h1{grid-area:title}.top .status{grid-area:status}.top .clock{grid-area:clock;min-width:0}
+@media (max-width:480px){.top{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "clock" "status"}.clock{text-align:left;padding:2px 0 4px}.clock br{display:none}.clock b+br+*{margin-left:8px}}
+.clock{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;text-align:right;line-height:1.3;overflow-wrap:anywhere}
+.clock b{color:var(--fg);font-weight:600}
+.status{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--no);display:inline-block}
+.dot.ok{background:var(--ok)} .dot.err{background:var(--yes)} .dot.busy{background:var(--maybe)}
+/* bottom nav */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--line);display:flex;justify-content:space-around;
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.nav button{flex:1;max-width:160px;background:transparent;border:0;color:var(--muted);font-size:11px;font-weight:600;padding:6px 0 2px;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button[aria-selected="true"]{color:var(--ink)}
+.nav button:focus-visible{outline:2px solid var(--ink)}
+section.view{display:none}
+section.view.on{display:block}
+/* cards */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.card + .card{margin-top:12px}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 8px}
+.tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.stars{font-weight:500;font-size:13px;color:var(--maybe);white-space:nowrap;font-variant-numeric:tabular-nums;margin-left:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:500;border:1px solid var(--line);background:var(--paper);color:var(--fg)}
 .pill.yes{color:var(--yes);border-color:transparent;background:var(--yes-soft)}
 .pill.maybe{color:var(--maybe);border-color:transparent;background:var(--maybe-soft)}
-.pill.sync{color:var(--muted)}
-.tallywrap{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
-.pill.share{cursor:pointer;color:var(--ink);border-color:var(--ink);font:inherit;font-size:13px;font-weight:600}
-.sharebox{width:min(100%,360px);font:12px var(--body);padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg)}
-.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;max-width:min(92vw,420px);z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.25)}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;max-width:1240px;margin:0 auto;padding-block:6px 10px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
-.views{display:none}
-.when{font:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:transparent;border:0;padding:0;cursor:pointer;font-weight:600}
-.editwhen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 4px;padding:8px;background:var(--bg);border-radius:8px}
-.editwhen select,.editwhen input{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg);min-height:36px}
-.editwhen button{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--fg);min-height:36px;cursor:pointer}
-.editwhen .esave{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
-.editwhen button:disabled{opacity:.5;cursor:not-allowed}
-
-.tab{border:1px solid var(--line);background:var(--paper);color:var(--fg);border-radius:8px;padding:7px 12px;font:inherit;font-weight:500;cursor:pointer}
+.pill.ink{color:var(--ink);border-color:transparent;background:var(--ink-soft)}
+.pill.ok{color:var(--ok);border-color:transparent;background:var(--ok-soft)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--paper);color:var(--fg);border-radius:9px;padding:9px 14px;font-weight:600;font-size:14px;cursor:pointer;min-height:40px;text-decoration:none}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.danger{color:var(--yes);border-color:var(--yes)}
+.btn.small{min-height:32px;padding:4px 10px;font-size:13px;font-weight:500}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,.tab:focus-visible,.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+/* tabs and chips */
+.tabs{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:6px 0 10px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:1px solid var(--line);background:var(--paper);color:var(--fg);border-radius:8px;padding:8px 13px;font-weight:500;cursor:pointer;white-space:nowrap;font-size:14px}
 .tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
-.tab:focus-visible,.pick:focus-visible,.row:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,46%);gap:18px;max-width:1240px;margin:0 auto;align-items:start}
-@media (max-width:860px){.wrap{grid-template-columns:1fr}.side{order:-1}}
-.side{display:flex;flex-direction:column;gap:14px;min-width:0}
-.tlcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
-.tlcard h2{font-family:var(--display);font-size:17px;margin:0 0 2px;font-weight:600}
-.tlcard .sub{color:var(--muted);font-size:12.5px;margin:0 0 6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink-soft);color:var(--ink);border-color:transparent;font-weight:600}
+/* plan list */
+.plan{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media (min-width:900px){.plan{grid-template-columns:minmax(0,1fr) 380px;align-items:start}.plan .aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}}
+.list{display:flex;flex-direction:column;gap:12px;min-width:0}
+.slot{display:flex;flex-direction:column;gap:6px}
+.slot .t{font-family:var(--display);font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px;padding-top:4px}
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:grid;grid-template-columns:28px minmax(0,1fr);grid-template-areas:"num body" "acts acts";gap:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;min-width:0}
+.row.plan{border-left:4px solid var(--ink)}
+.row.sel{box-shadow:0 0 0 2px var(--ink)}
+.row.st-yes{border-color:var(--yes)}
+.row.st-no{opacity:.55}
+.row.done .name{text-decoration:line-through;color:var(--muted)}
+.row.skip{opacity:.5}
+.num{grid-area:num;width:26px;height:26px;border-radius:50%;background:var(--ink-soft);color:var(--ink);font-weight:700;font-size:12px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.row.plan .num{background:var(--ink);color:#fff}
+.row.st-yes .num{background:var(--yes);color:#fff}
+.row.done .num{background:var(--ok);color:#fff}
+.body{grid-area:body;min-width:0}
+.name{font-weight:700;margin:0 0 2px;font-size:15.5px}
+.note{color:var(--muted);font-size:14px;margin:0}
+.usernote{margin:6px 0 0;font-size:14px;padding:6px 8px;background:var(--maybe-soft);border-radius:6px;color:var(--fg)}
+.hours{font-size:12.5px;color:var(--muted);margin-top:4px}
+.hours.warn{color:var(--yes);font-weight:600}
+.hours.open{color:var(--ok)}
+.meta{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:13px}
+.meta a{font-weight:500}
+.phone{font-variant-numeric:tabular-nums;display:inline-flex;gap:6px;align-items:center}
+.copy{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer}
+.when{font:inherit;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:transparent;border:0;padding:0;cursor:pointer;font-weight:600}
+.acts{grid-area:acts;display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:2px}
+.pick{flex:1 1 26%;height:42px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--muted);font-weight:700;font-size:16px;cursor:pointer}
+.pick[data-s="yes"].on{background:var(--yes);border-color:var(--yes);color:#fff}
+.pick[data-s="maybe"].on{background:var(--maybe);border-color:var(--maybe);color:#fff}
+.pick[data-s="no"].on{background:var(--no);border-color:var(--no);color:#fff}
+.book{flex:1 1 46%;height:42px;border-radius:8px;border:1px dashed var(--line);background:transparent;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer}
+.book.on{border-style:solid;border-color:var(--ink);background:var(--ink);color:#fff}
+.doneb{flex:1 1 46%;height:42px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer}
+.doneb.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.doneb.skipon{background:var(--no);border-color:var(--no);color:#fff}
+.editwhen{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 4px;padding:10px;background:var(--bg);border-radius:8px}
+.editwhen label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.editwhen select,.editwhen input,.editwhen textarea{font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg);min-height:40px;width:100%}
+.editwhen textarea{grid-column:1/-1;min-height:60px;resize:vertical}
+.editwhen .full{grid-column:1/-1}
+.editwhen .ebtns{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+/* timeline */
 .tlday{font-weight:700;margin:12px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .tlev{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;align-items:baseline;padding:6px 0 6px 10px;cursor:pointer;border-left:3px solid var(--ink);border-radius:2px}
 .tlev.anchor{border-left-color:var(--muted)}
+.tlev.done{opacity:.5}
 .tlev.sel{background:var(--ink-soft)}
 .tlt{font-variant-numeric:tabular-nums;font-weight:700}
 .tlt small,.tln small{display:block;color:var(--muted);font-weight:400;font-size:12px;line-height:1.35}
 .tln{font-weight:500}
 .tlgo{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted);padding:3px 0 3px 13px;margin-left:1px;border-left:1px dashed var(--line)}
 .tlgo b{font-weight:600}
-.tlgo.tight{color:var(--yes)}
-.tlgo.ok{color:var(--maybe)}
-.list{display:flex;flex-direction:column;gap:14px;min-width:0}
-.slot{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px}
-.slot .t{font-family:var(--display);font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:12px;font-size:15px}
-.rows{display:flex;flex-direction:column;gap:8px;min-width:0}
-.row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:start;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;min-width:0}
-.row.plan{border-left:4px solid var(--ink)}
-.row.sel{box-shadow:0 0 0 2px var(--ink)}
-.row.st-yes{border-color:var(--yes)}
-.row.st-no{opacity:.55}
-.num{width:26px;height:26px;border-radius:50%;background:var(--ink-soft);color:var(--ink);font-weight:700;font-size:12px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
-.row.plan .num{background:var(--ink);color:#fff}
-.row.st-yes .num{background:var(--yes);color:#fff}
-.name{font-weight:700;margin:0 0 2px}
-.note{color:var(--muted);font-size:13.5px;margin:0}
-.stars{font-weight:500;font-size:13px;color:var(--maybe);white-space:nowrap;font-variant-numeric:tabular-nums;margin-left:4px}
-.stars small{color:var(--muted);font-weight:400}
-.tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
-.meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:13px}
-.meta a{font-weight:500}
-.phone{font-variant-numeric:tabular-nums;display:inline-flex;gap:6px;align-items:center}
-.copy{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;padding:1px 7px;font:inherit;font-size:12px;cursor:pointer}
-.picks{display:flex;gap:4px;align-self:start}
-.pick{width:34px;height:30px;border-radius:7px;border:1px solid var(--line);background:var(--paper);color:var(--muted);font:inherit;font-weight:700;cursor:pointer}
-.pick[data-s="yes"].on{background:var(--yes);border-color:var(--yes);color:#fff}
-.pick[data-s="maybe"].on{background:var(--maybe);border-color:var(--maybe);color:#fff}
-.pick[data-s="no"].on{background:var(--no);border-color:var(--no);color:#fff}
-.pick:disabled,.book:disabled{opacity:.5;cursor:not-allowed}
-.picks{flex-wrap:wrap;justify-content:flex-end;max-width:112px}
-.book{height:26px;border-radius:7px;border:1px dashed var(--line);background:transparent;color:var(--muted);font:inherit;font-size:11.5px;font-weight:500;padding:0 8px;cursor:pointer;flex-basis:100%}
-.book.on{border-style:solid;border-color:var(--ink);background:var(--ink);color:#fff}
-.book:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.mapcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
-.mapcard h2{font-family:var(--display);font-size:17px;margin:0 0 2px;font-weight:600}
-.mapcard .sub{color:var(--muted);font-size:12.5px;margin:0 0 8px}
-.lmap{width:100%;height:min(72vh,640px);border-radius:8px;background:var(--bg);isolation:isolate}
-.lmap .leaflet-tile-pane{filter:saturate(.85)}
+.tlgo.tight{color:var(--yes)} .tlgo.ok{color:var(--maybe)}
+/* now view */
+.nowgrid{display:grid;gap:12px}
+@media (min-width:900px){.nowgrid{grid-template-columns:1fr 1fr}}
+.big{font-family:var(--display);font-size:28px;font-weight:800;line-height:1.1;margin:2px 0 4px}
+.countdown{font-size:15px;color:var(--muted);margin:0 0 6px}
+.countdown b{color:var(--fg);font-variant-numeric:tabular-nums}
+.leaveby{display:inline-block;padding:6px 10px;border-radius:8px;background:var(--ink-soft);color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0 8px}
+.leaveby.tight{background:var(--yes-soft);color:var(--yes)}
+.compact{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.compact .item{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg);cursor:pointer;font-size:14px}
+.compact .item.done{opacity:.5;text-decoration:line-through}
+.compact .item b{font-variant-numeric:tabular-nums}
+.setup{padding:10px 12px;border-radius:8px;background:var(--maybe-soft);color:var(--fg);font-size:14px;margin-bottom:10px}
+.setup input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg)}
+/* map */
+.lmap{width:100%;height:min(64vh,620px);border-radius:8px;background:var(--bg);isolation:isolate}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .lmap .leaflet-tile-pane{filter:brightness(.8) contrast(1.05) saturate(.7)}}
 :root[data-theme="dark"] .lmap .leaflet-tile-pane{filter:brightness(.8) contrast(1.05) saturate(.7)}
 .mk{width:26px;height:26px;border-radius:50%;background:var(--ink-soft);border:1.5px solid var(--ink);color:var(--ink);font:700 11px/23px var(--body);text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.mk.plan{background:var(--ink);color:#fff}.mk.st-yes{background:var(--yes);border-color:var(--yes);color:#fff}.mk.st-no{opacity:.4}.mk.sel{box-shadow:0 0 0 3px var(--fg)}
+.mk.plan{background:var(--ink);color:#fff}.mk.st-yes{background:var(--yes);border-color:var(--yes);color:#fff}.mk.st-no{opacity:.4}.mk.sel{box-shadow:0 0 0 3px var(--fg)}.mk.done{background:var(--ok);border-color:var(--ok);color:#fff}
 .mk.hotel{background:var(--fg);border-color:var(--paper);color:var(--paper);font-size:13px}
-.leaflet-popup-content{font-family:var(--body);font-size:13px;margin:10px 12px}.leaflet-popup-content .name{font-size:14px}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--paper);color:var(--fg)}
+.mk.me{background:#fff;border:3px solid #2a8af0;width:18px;height:18px;box-shadow:0 0 0 6px rgba(42,138,240,.25)}
+.leaflet-popup-content{font-family:var(--body);font-size:13px;margin:10px 12px;max-width:260px}.leaflet-popup-content .name{font-size:14px}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--paper);color:var(--fg)}
 .leaflet-control-attribution{font-size:10px}
-.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
-.legend span{display:inline-flex;align-items:center;gap:5px}
-.sw{width:12px;height:12px;border-radius:50%;display:inline-block}
+.mapbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .detail{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;min-height:40px}
-.detail .name{font-size:15px}
 .empty{color:var(--muted)}
-@media (prefers-reduced-motion:no-preference){.row,.pick,.tab{transition:background .15s,border-color .15s,box-shadow .15s}}
-@media (max-width:860px){
-  .views{display:flex;gap:0;max-width:1240px;margin:0 auto 12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
-  .views button{flex:1;font:inherit;font-weight:600;font-size:14px;padding:10px 0;border:0;background:transparent;color:var(--muted);cursor:pointer}
-  .views button[aria-selected="true"]{background:var(--ink);color:#fff}
-  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:10px}
-  .tabs::-webkit-scrollbar{display:none}
-  .tab{white-space:nowrap;padding:9px 14px;font-size:14px}
-  .wrap[data-view="list"] .side{display:none}
-  .wrap[data-view="timeline"] .list,.wrap[data-view="timeline"] .mapcard{display:none}
-  .wrap[data-view="map"] .list,.wrap[data-view="map"] .tlcard{display:none}
-  .side{order:0}
-  .lmap{height:min(62vh,560px)}
-}
-@media (max-width:600px){
-  .slot{grid-template-columns:1fr;gap:6px}
-  .slot .t{padding-top:2px;font-size:13px}
-  .row{grid-template-columns:28px minmax(0,1fr);grid-template-areas:"num body" "acts acts";padding:12px}
-  .row .num{grid-area:num}.row .body{grid-area:body}
-  .row .picks{grid-area:acts;flex-direction:row;flex-wrap:nowrap;max-width:none;width:100%;margin-top:6px}
-  .pick{flex:1 1 0;height:42px;font-size:16px}
-  .book{flex:1.8 1 0;flex-basis:auto;height:42px;font-size:13px}
-  .note{font-size:14px}
-  .meta{gap:8px 14px}
-  .copy{padding:4px 10px;font-size:13px}
-  .top p{font-size:14px}
-}
+/* essentials */
+.ess{display:grid;gap:12px}
+@media (min-width:900px){.ess{grid-template-columns:1fr 1fr}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;align-items:baseline}
+.kv dt{color:var(--muted);font-size:12.5px}
+.kv dd{margin:0;font-variant-numeric:tabular-nums}
+.taxi{font-size:22px;line-height:1.35;padding:12px;border-radius:10px;background:var(--bg);margin-top:8px;word-break:keep-all}
+.wx{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.wx .d{text-align:center;padding:8px 4px;border-radius:8px;background:var(--bg);font-size:12.5px}
+.wx .d b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+.wx .d small{color:var(--muted);display:block}
+.yen{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}
+.yen input,.spendform input,.nums input,.addform input,.addform select,.addform textarea{font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg);min-height:40px;width:100%}
+.yen output{font-variant-numeric:tabular-nums;font-weight:700}
+.spendlist{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:14px}
+.spendlist .s{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 8px;background:var(--bg);border-radius:6px}
+.spendform{display:grid;grid-template-columns:1fr 1.6fr auto;gap:6px;margin-top:8px;align-items:end}
+.phr{display:grid;gap:6px}
+.phr .p{display:grid;grid-template-columns:1fr;gap:1px;padding:8px 10px;background:var(--bg);border-radius:8px}
+.phr .p b{font-size:17px}
+.phr .p i{font-style:normal;color:var(--muted);font-size:12.5px}
+.nums{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+/* add form (sheet) */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet .panel{background:var(--paper);color:var(--fg);width:min(100%,560px);max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.addform{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.addform label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.addform .full{grid-column:1/-1}
+.addform textarea{min-height:56px;resize:vertical}
+.fab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:21;border-radius:999px;background:var(--ink);color:#fff;border:0;padding:12px 16px;font-weight:700;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;display:none}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;max-width:min(92vw,420px);z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress i{display:block;height:100%;background:var(--ink);width:0}
+.hint{font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.row,.pick,.tab,.btn{transition:background .15s,border-color .15s,box-shadow .15s}}
 </style>
 </head>
 <body>
-
-<div class="top">
-  <div>
-    <h1>Tokyo Family Weekend</h1>
-    <p>Friday to Monday from ENT TERRACE Ginza. Blue-edged rows are booked; <b>Mark booked</b> on any idea moves it there once you have a reservation. Tap <b>Yes</b>, <b>?</b> or <b>No</b> on the rest and the choice is shared through the Picks tab of the Japan Trip sheet, so every phone sees it within a few seconds. <b>Copy share link</b> is the offline fallback.</p>
-  </div>
-  <div class="tallywrap"><div class="tally" id="tally"></div><button type="button" class="pill share" id="sharebtn">Copy share link</button><textarea id="sharebox" class="sharebox" hidden readonly aria-label="Share link"></textarea></div>
-</div>
-
-<div class="tabs" role="tablist" id="tabs"></div>
-<div class="views" id="views" role="tablist" aria-label="View"><button type="button" data-v="list" aria-selected="true">List</button><button type="button" data-v="timeline">Timeline</button><button type="button" data-v="map">Map</button></div>
-
-<div class="wrap" id="wrap" data-view="list">
-  <div class="list" id="list"></div>
-  <div class="side">
-  <div class="tlcard">
-    <h2>Confirmed timeline</h2>
-    <p class="sub">Booked items only, in order, with estimated travel to the next one. Straight-line estimates: walking at 75 m per minute, otherwise train with 12 minutes added for stations and waits. Haneda legs use the Asakusa Line through-train.</p>
-    <div id="timeline"></div>
-  </div>
-  <div class="mapcard">
-    <h2 id="maptitle">Where things are</h2>
-    <p class="sub">Numbers match the list. Tap a pin for details and the Google Maps link.</p>
-    <div id="map" class="lmap" role="region" aria-label="Map of the plan"></div>
-    <div class="legend">
-      <span><i class="sw" style="background:var(--ink)"></i>booked</span>
-      <span><i class="sw" style="background:var(--ink-soft);border:1px solid var(--ink)"></i>idea</span>
-      <span><i class="sw" style="background:var(--yes)"></i>yes</span>
-      <span><i class="sw" style="background:var(--fg)"></i>hotel</span>
+<div class="wrapper">
+  <header class="top">
+    <div>
+      <h1>Tokyo Family Weekend</h1>
+      <div class="status"><span class="dot" id="syncdot"></span><span id="synclabel">Loading…</span></div>
     </div>
-    <div class="detail" id="detail"><span class="empty">Nothing selected yet.</span></div>
-  </div>
-  </div>
+    <div class="clock" id="clock"></div>
+  </header>
+
+  <!-- NOW -->
+  <section class="view" id="view-now" aria-labelledby="nav-now">
+    <div id="now"></div>
+  </section>
+
+  <!-- PLAN -->
+  <section class="view" id="view-plan" aria-labelledby="nav-plan">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="chips" id="chips"></div>
+    <div class="plan">
+      <div class="list" id="list"></div>
+      <div class="aside">
+        <div class="card">
+          <h2>Timeline</h2>
+          <p class="sub">Booked items and your ✓ picks in order, with rough travel time between them. Tap to see it on the map.</p>
+          <div id="timeline"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section class="view" id="view-map" aria-labelledby="nav-map">
+    <div class="card">
+      <div class="mapbar">
+        <button type="button" class="btn small" id="locate">◎ Locate me</button>
+        <button type="button" class="btn small" id="fitall">Fit all</button>
+        <button type="button" class="btn small" id="savemap">Save map for offline</button>
+        <span class="hint" id="maphint"></span>
+      </div>
+      <div class="progress" id="tileprog" hidden><i></i></div>
+      <div id="map" class="lmap" role="img" aria-label="Map of the weekend's places"></div>
+      <div class="detail" id="detail"><span class="empty">Tap a pin or a list item to see details here.</span></div>
+    </div>
+  </section>
+
+  <!-- ESSENTIALS -->
+  <section class="view" id="view-more" aria-labelledby="nav-more">
+    <div class="ess" id="ess"></div>
+  </section>
 </div>
 
+<button type="button" class="fab" id="fab">＋ Add</button>
+<div id="sheet"></div>
+
+<nav class="nav" role="tablist" aria-label="Sections">
+  <button type="button" id="nav-now" data-view="now" role="tab" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Now</button>
+  <button type="button" id="nav-plan" data-view="plan" role="tab"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Plan</button>
+  <button type="button" id="nav-map" data-view="map" role="tab"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>Map</button>
+  <button type="button" id="nav-more" data-view="more" role="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Essentials</button>
+</nav>
 <script>
-const PLACES = [{"id":"hotel","name":"ENT TERRACE GINZA PREMIUM (hotel)","lat":35.6702818,"lng":139.7697957,"layer":"Hotel & transport","day":"All","time":"","kind":"plan","note":"Ginza 3-14-6, next to Kabuki-za. 3 min walk to Higashi-Ginza (Hibiya + Asakusa lines). Check-in 16:00 to 01:00, check-out 10:00. Confirm luggage storage for Monday.","link":"https://www.google.com/maps/place/?q=place_id:ChIJZxZtaACLGGARJGjxfm6lr7g","phone":"+81 3-6264-1440","cat":"Hotel","rating":4.8,"reviews":28},{"id":"higashi-ginza","name":"Higashi-Ginza Station","lat":35.6697003,"lng":139.7671399,"layer":"Hotel & transport","day":"All","time":"","kind":"plan","note":"Hibiya Line and Asakusa Line. Asakusa Line runs through onto Keikyu to Haneda, about 30 to 35 min on through-trains.","link":"https://www.google.com/maps/place/?q=place_id:ChIJK2bxJueLGGARwHHeH52hGiM","phone":"","cat":"Transport","rating":3.7,"reviews":544},{"id":"haneda","name":"Haneda Airport Terminal 3","lat":35.5454613,"lng":139.7687222,"layer":"Hotel & transport","day":"Fri/Mon","time":"Fri 19:00 land, Mon 18:00 depart","kind":"plan","note":"Keikyu to Higashi-Ginza direct. Leave the hotel 15:00 Monday (14:00 if Narita).","link":"https://www.google.com/maps/place/?q=place_id:ChIJEzipOlRhGGAR3-3UwuMqAnI","phone":"","cat":"Transport","rating":null,"reviews":null},{"id":"kushikatsu","name":"Kushikatsu Tanaka Higashi-Ginza","lat":35.6702404,"lng":139.7682871,"layer":"Late dinner","day":"Fri","time":"late fallback","kind":"idea","note":"Backup if GOKU falls through. Osaka-style fried skewers, dice games, English QR menu. Fri to 01:00, Sat/Sun to 00:00. 2 min from the hotel. Best kid option, easiest walk-in.","link":"https://www.google.com/maps/place/?q=place_id:ChIJqXr3gPOLGGAROvbbByq3d-M","phone":"+81 3-6264-2774","cat":"Izakaya","rating":4.8,"reviews":4565},{"id":"goku","name":"GOKU Wagyu Sukiyaki Higashi-Ginza","lat":35.6658803,"lng":139.7715921,"layer":"Late dinner","day":"Fri","time":"22:00 dinner","kind":"plan","note":"Reserved Friday 22:00. Tsukiji 3-17-10, BAN Hotel 1F, 5 min walk from the hotel. Wagyu sukiyaki, truffle egg rice to finish. Counter seats, 45 min limit when busy, closes 23:00. Call if the flight runs late.","link":"https://www.google.com/maps/place/?q=place_id:ChIJlwHWGG2LGGARG2Agb191-zs","phone":"+81 3-6684-1095","cat":"Wagyu sukiyaki","rating":4.9,"reviews":3138},{"id":"itamae","name":"Itamae Sushi Prime, Ginza Six 6F","lat":35.6693354,"lng":139.7639026,"layer":"Late dinner","day":"Fri","time":"21:45","kind":"idea","note":"Counter sushi that takes families, English-speaking chefs. Daily to 23:00. 8 min walk.","link":"https://www.google.com/maps/place/?q=place_id:ChIJn4sfCACLGGARxHAI09MckQo","phone":"","cat":"Sushi","rating":4.7,"reviews":1043},{"id":"oshio","name":"Oshio Sohonke (izakaya), Ginza 8-chome","lat":35.6683715,"lng":139.7586723,"layer":"Late dinner","day":"Fri","time":"21:45","kind":"idea","note":"Seafood, sashimi, grilled fish, fried chicken at Shimbashi prices. No reservation needed. Mon to Sat to 03:00, Sun to 23:00. Get off at Shimbashi on the way from Haneda.","link":"https://www.google.com/maps/place/?q=place_id:ChIJz6XtxsOLGGARR8RT5i9bH34","phone":"+81 3-6264-6451","cat":"Izakaya","rating":4.7,"reviews":117},{"id":"satsuma","name":"Kitashinchi Yakiniku Satsuma, Ginza 8-chome","lat":35.6691375,"lng":139.7603662,"layer":"Late dinner","day":"Fri","time":"21:45","kind":"idea","note":"Late-night yakiniku with proper wagyu; gyutan is the standout. Fri to 05:00, Sat/Sun to 23:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJHXFKSRSLGGAREScBWaLn_FA","phone":"+81 3-3573-2955","cat":"Yakiniku","rating":4.8,"reviews":1629},{"id":"nobunaga","name":"Menya NOBUNAGA, Kyobashi (ramen)","lat":35.6764566,"lng":139.7704595,"layer":"Late dinner","day":"Fri","time":"late","kind":"idea","note":"Creamy chicken paitan ramen, 4.8 on 3,000+ reviews, ticket machine. Daily to 03:00. 10 min walk north.","link":"https://www.google.com/maps/place/?q=place_id:ChIJaQ9iDCyLGGARj48qFLQAcOs","phone":"","cat":"Ramen","rating":4.8,"reviews":3331},{"id":"arashi","name":"Ramen Kagetsu Arashi, Ginza 7-chome","lat":35.6709503,"lng":139.7598062,"layer":"Late dinner","day":"Fri","time":"late","kind":"idea","note":"Chain, no queue, open almost all night. Spicy and vegan tantan options. Fri/Sat to 06:00, Sun to 23:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ24cTZwCLGGARG0GkLPDKkMI","phone":"","cat":"Ramen","rating":4.7,"reviews":65},{"id":"sushisen","name":"Tsukiji Sushisen","lat":35.665609,"lng":139.769942,"layer":"Saturday","day":"Sat","time":"09:00 breakfast","kind":"idea","note":"Opens 06:00, counter, English spoken, bluefin set. Walk-in only. 10 min from the hotel.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ6U7P3d6LGGARGclkhX-j6EQ","phone":"+81 3-6226-3860","cat":"Sushi","rating":4.5,"reviews":150},{"id":"koromo","name":"Tsukiji Koromo Sushi","lat":35.6658371,"lng":139.7710144,"layer":"Saturday","day":"Sat","time":"09:00 breakfast","kind":"idea","note":"Opens 08:30, 8 counter seats, 2,500 yen ten-piece omakase. Walk-in only.","link":"https://www.google.com/maps/place/?q=place_id:ChIJsZBxY0CLGGARkkHYYGyj_Yc","phone":"+81 3-6264-2626","cat":"Sushi","rating":4.4,"reviews":448},{"id":"sushidai","name":"Tsukiji Sushi Dai Honkan","lat":35.664581,"lng":139.7723,"layer":"Saturday","day":"Sat","time":"10:00","kind":"idea","note":"The famous one. Opens 10:30, about 4,200 yen omakase, queue before opening, no reservations.","link":"https://www.google.com/maps/place/?q=place_id:ChIJIw1YEtmLGGARdWgvKs50S7A","phone":"+81 3-3541-3738","cat":"Sushi","rating":4.4,"reviews":2562},{"id":"tsukiji","name":"Tsukiji Outer Market (Fish Market & pancakes)","lat":35.6647703,"lng":139.7702515,"layer":"Saturday","day":"Sat","time":"11:00","kind":"plan","note":"Snack crawl: tamagoyaki on a stick, grilled tuna skewer, uni on a scallop, strawberry daifuku.","link":"https://maps.app.goo.gl/hyC3KD6DYyc7BED16","phone":"","cat":"Market","rating":4.2,"reviews":56307},{"id":"monja","name":"Tsukishima Monja Street","lat":35.6642944,"lng":139.7824662,"layer":"Saturday","day":"Sat","time":"12:00","kind":"idea","note":"One metro stop from Tsukiji. Runny okonomiyaki the kids cook themselves on the hotplate.","link":"https://www.google.com/maps/place/?q=place_id:ChIJZ8PuP3CJGGARAXwWdc4PGQw","phone":"","cat":"Street food","rating":4.2,"reviews":2899},{"id":"teamlab","name":"teamLab Planets (Teamlabs again?)","lat":35.6491207,"lng":139.7897739,"layer":"Saturday","day":"Sat","time":"13:00","kind":"plan","note":"Your original 13:00 entry. Already done once; alternatives A, B, C below.","link":"https://share.google/9YorXrCVNPnhpzQPL","phone":"","cat":"Museum","rating":4.5,"reviews":57861},{"id":"hamarikyu","name":"A: Hamarikyu Gardens","lat":35.6596559,"lng":139.7634091,"layer":"Saturday","day":"Sat","time":"13:00","kind":"idea","note":"Recommended route. 15 min walk from Tsukiji, 300 yen, tea house on the pond. Then the boat.","link":"https://www.google.com/maps/place/?q=place_id:ChIJwfegutyLGGARGjiY-L2eSps","phone":"+81 3-3541-0200","cat":"Garden","rating":4.5,"reviews":12863},{"id":"pier","name":"A: Hamarikyu pier (Tokyo Cruise)","lat":35.6600447,"lng":139.7670779,"layer":"Saturday","day":"Sat","time":"14:00","kind":"idea","note":"Boat up the Sumida to Asakusa, about 35 min. Check on the Tokyo Cruise site that the Hamarikyu stop is running; if not, board at Hinode Pier.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ0ZJWPdqLGGARSXLrOizQr3Q","phone":"","cat":"Boat","rating":4.0,"reviews":192},{"id":"sensoji","name":"A: Senso-ji + Nakamise","lat":35.7147651,"lng":139.7966553,"layer":"Saturday","day":"Sat","time":"15:00","kind":"idea","note":"Ningyo-yaki and taiyaki off the mold on Nakamise. Leave Asakusa by 16:15.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ8T1GpMGOGGARDYGSgpooDWw","phone":"","cat":"Temple","rating":4.6,"reviews":100742},{"id":"kagetsudo","name":"A: Kagetsudo melonpan","lat":35.7146332,"lng":139.7951685,"layer":"Saturday","day":"Sat","time":"15:00","kind":"idea","note":"Melonpan hot from the oven, short queue. Sat to 17:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJSTVEQMCOGGARa74pG98OyD0","phone":"","cat":"Bakery","rating":4.4,"reviews":2986},{"id":"suzukien","name":"A: Suzukien matcha gelato","lat":35.7163436,"lng":139.7969391,"layer":"Saturday","day":"Sat","time":"15:00","kind":"idea","note":"Seven matcha strengths. Level 7 is a dare for the kids. To 17:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJidgn3MGOGGARVSZF3Mq9vho","phone":"","cat":"Dessert","rating":4.4,"reviews":4072},{"id":"miraikan","name":"B: Miraikan science museum (Odaiba)","lat":35.6193359,"lng":139.7763995,"layer":"Saturday","day":"Sat","time":"13:00","kind":"idea","note":"Yurikamome from Shimbashi. Giant globe, ISS module, hands-on floors.","link":"https://www.google.com/maps/place/?q=place_id:ChIJz_149P6JGGARoImMn3NlsfY","phone":"","cat":"Museum","rating":4.1,"reviews":17007},{"id":"joypolis","name":"B: Joypolis (Odaiba)","lat":35.62866,"lng":139.775364,"layer":"Saturday","day":"Sat","time":"14:00","kind":"idea","note":"Indoor rides and arcade. Sat 10:00 to 20:00. Waits can hit 60 min.","link":"https://www.google.com/maps/place/?q=place_id:ChIJuTdPXvaJGGARJhT_Ai6urFQ","phone":"","cat":"Arcade","rating":4.0,"reviews":8141},{"id":"skytree","name":"C: Tokyo Skytree","lat":35.7100627,"lng":139.8107004,"layer":"Saturday","day":"Sat","time":"13:00","kind":"idea","note":"25 min by subway from Tsukiji. Book the deck in advance.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ35ov0dCOGGARKvdDH7NPHX0","phone":"","cat":"Viewpoint","rating":4.4,"reviews":120539},{"id":"sumida","name":"C: Sumida Aquarium","lat":35.7099301,"lng":139.8095855,"layer":"Saturday","day":"Sat","time":"14:00","kind":"idea","note":"Same complex as Skytree. Penguins, jellyfish, 90 min. Walk in.","link":"https://www.google.com/maps/place/?q=place_id:ChIJO6bK3daOGGARYEFGg4Xm-VI","phone":"","cat":"Aquarium","rating":4.2,"reviews":12306},{"id":"coredo","name":"Coredo Muromachi","lat":35.6865187,"lng":139.7740345,"layer":"Saturday","day":"Sat","time":"16:00","kind":"idea","note":"If early for dinner. Shops and restaurants next to Mitsukoshimae station.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ3wbbClWJGGARHXtIUuwJqW8","phone":"","cat":"Shopping","rating":3.9,"reviews":7757},{"id":"pokemon-dx","name":"Pokemon Center DX, Nihonbashi Takashimaya","lat":35.6802902,"lng":139.7742695,"layer":"Saturday","day":"Sat","time":"16:00","kind":"idea","note":"The big one, with the cafe. 10:30 to 21:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJCVAO3leJGGARvCoZ_hJkye4","phone":"","cat":"Shop","rating":4.5,"reviews":4268},{"id":"ninja","name":"Ninja Tokyo (dinner)","lat":35.6845764,"lng":139.7675608,"layer":"Saturday","day":"Sat","time":"17:00","kind":"plan","note":"Otemachi, basement of Shin-Otemachi Building, 5 min from Tokyo Station. Reservation needed. Closed Tue and Sun.","link":"https://maps.app.goo.gl/rGcnkVWgX5hnNswe7","phone":"","cat":"Theme dinner","rating":4.5,"reviews":1402},{"id":"gigo","name":"GiGO Akihabara Building 3","lat":35.6992456,"lng":139.7709552,"layer":"Saturday","day":"Sat","time":"21:00","kind":"idea","note":"Claw machines, retro floor on 6F. To 23:30.","link":"https://www.google.com/maps/place/?q=place_id:ChIJR-PMBx2MGGARPFrgtULaJB0","phone":"","cat":"Arcade","rating":4.1,"reviews":3900},{"id":"gachapon","name":"Akihabara Gachapon Hall","lat":35.7018425,"lng":139.7712256,"layer":"Saturday","day":"Sat","time":"21:00","kind":"idea","note":"Hundreds of capsule machines. 1,000 yen budget each. Closes 20:00 (19:00 Sun), so go before the arcade.","link":"https://www.google.com/maps/place/?q=place_id:ChIJBztW3x2MGGARadHYl5vTEK0","phone":"","cat":"Shop","rating":4.0,"reviews":1656},{"id":"bills","name":"bills Ginza (pancakes)","lat":35.6732429,"lng":139.7667056,"layer":"Sunday","day":"Sun","time":"08:30 breakfast","kind":"idea","note":"Ricotta pancakes, 12F. Morning slots fill fast, book by phone.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ4wnkFeSLGGARliQwUPoODeY","phone":"+81 50-3188-6633","cat":"Breakfast","rating":4.1,"reviews":3300},{"id":"centre","name":"Centre The Bakery","lat":35.6755334,"lng":139.7665952,"layer":"Sunday","day":"Sun/Mon","time":"09:00 breakfast","kind":"idea","note":"Shokupan toast, French toast, jam and butter set. No reservations, queue by 11:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJE8S0lOSLGGAR84AdzQ71F3I","phone":"+81 3-3562-1016","cat":"Bakery","rating":4.2,"reviews":3367},{"id":"meiji","name":"Meiji Shrine","lat":35.6763976,"lng":139.6993259,"layer":"Sunday","day":"Sun","time":"10:00","kind":"plan","note":"Start at 09:00 if you can; busy from 10:30.","link":"https://share.google/VdWJqIUiXIhUAaZ5F","phone":"","cat":"Shrine","rating":4.7,"reviews":54136},{"id":"takeshita","name":"Takeshita Street","lat":35.6710335,"lng":139.7051821,"layer":"Sunday","day":"Sun","time":"11:00","kind":"plan","note":"Crazy shopping. Marion Crepes and the purikura booths are here.","link":"https://share.google/1fRoG35Fh8LB1kJQH","phone":"","cat":"Shopping","rating":null,"reviews":null},{"id":"marion","name":"Marion Crepes","lat":35.6712605,"lng":139.7048981,"layer":"Sunday","day":"Sun","time":"11:00","kind":"idea","note":"The original Harajuku crepe stand. Pick the one with cheesecake inside.","link":"https://www.google.com/maps/place/?q=place_id:ChIJPft3N7uMGGAReOEjLwqJIm0","phone":"","cat":"Dessert","rating":4.0,"reviews":1901},{"id":"purikura","name":"Purikura Shop NOA","lat":35.6714387,"lng":139.7036819,"layer":"Sunday","day":"Sun","time":"11:00","kind":"idea","note":"Photo booths. Everyone in, no exceptions. 100 yen coins, about 500 yen a machine.","link":"https://www.google.com/maps/place/?q=place_id:ChIJy8og57qMGGARfZDr4L8_bXI","phone":"","cat":"Photo booth","rating":4.5,"reviews":380},{"id":"gyozarou","name":"Harajuku Gyozarou","lat":35.6675016,"lng":139.7061026,"layer":"Sunday","day":"Sun","time":"12:00 lunch","kind":"idea","note":"Cheap, fast gyoza at a U-shaped counter. Cash only. Queue moves.","link":"https://www.google.com/maps/place/?q=place_id:ChIJF6tIb6SMGGAR2iuQeXjrMIs","phone":"","cat":"Gyoza","rating":4.0,"reviews":4478},{"id":"motomura","name":"Gyukatsu Motomura, Shibuya","lat":35.656977,"lng":139.7039981,"layer":"Sunday","day":"Sun","time":"12:00 lunch","kind":"idea","note":"Rare beef cutlet you finish on a hot stone. 4.9 on 17,000 reviews. Short queue.","link":"https://www.google.com/maps/place/?q=place_id:ChIJn2FoeFmLGGARnIog2ijRZXw","phone":"","cat":"Gyukatsu","rating":4.9,"reviews":16982},{"id":"shibuya-sky","name":"Shibuya Sky","lat":35.6586719,"lng":139.7019848,"layer":"Sunday","day":"Sun","time":"13:00","kind":"plan","note":"Timed entry, sells out on weekends. Booked.","link":"https://maps.app.goo.gl/KP2BepAru4KQ97QM6","phone":"","cat":"Viewpoint","rating":4.6,"reviews":27690},{"id":"nintendo","name":"Nintendo Tokyo, Shibuya Parco 6F","lat":35.6621161,"lng":139.6986385,"layer":"Sunday","day":"Sun","time":"14:00","kind":"idea","note":"Same floor as the Pokemon Center. 10:00 to 21:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ7Su1FK6NGGARAr7UK5NjmMo","phone":"","cat":"Shop","rating":4.5,"reviews":4621},{"id":"pokemon-shibuya","name":"Pokemon Center Shibuya","lat":35.6619557,"lng":139.6984408,"layer":"Sunday","day":"Sun","time":"15:00","kind":"plan","note":"Shibuya Parco 6F.","link":"https://maps.app.goo.gl/YFqHQRvXeYU8XpFm9","phone":"","cat":"Shop","rating":4.3,"reviews":3078},{"id":"goyemon","name":"goyemon Shibuya (sandals)","lat":35.657224,"lng":139.7087487,"layer":"Sunday","day":"Sun","time":"15:00","kind":"plan","note":"Tiendas: Sandalias Goyemon. 10 min walk east of Shibuya station. Sun 11:00 to 19:00.","link":"https://maps.app.goo.gl/xAo1hv5VsZmvSR649","phone":"","cat":"Shop","rating":5.0,"reviews":1278},{"id":"miyashita","name":"Miyashita Park","lat":35.661791,"lng":139.7018507,"layer":"Sunday","day":"Sun","time":"16:00","kind":"idea","note":"Rooftop park, Shibuya Yokocho food alley underneath. Free.","link":"https://www.google.com/maps/place/?q=place_id:ChIJURWUIuaNGGARvtlnJNz-AFQ","phone":"","cat":"Park","rating":4.2,"reviews":5598},{"id":"azasu","name":"Yakiniku Azasu Ginza","lat":35.6710873,"lng":139.7631833,"layer":"Sunday","day":"Sun","time":"17:00 dinner","kind":"idea","note":"Wagyu. 11F counter with a view, courses from 8,800 yen, English-speaking staff, until 23:00. Reserve.","link":"https://www.google.com/maps/place/?q=place_id:ChIJOZbw01KLGGARQuuqvK91TrU","phone":"+81 50-1808-6464","cat":"Yakiniku","rating":4.8,"reviews":576},{"id":"beefmaster","name":"The Beef Master Ginza","lat":35.6741752,"lng":139.7669788,"layer":"Sunday","day":"Sun","time":"17:00 dinner","kind":"idea","note":"Wagyu. Each table in its own private room, course menus, English menus, until 23:00. Reserve.","link":"https://www.google.com/maps/place/?q=place_id:ChIJVx0L_e6LGGARJmlbdvm2VCk","phone":"+81 3-6263-2911","cat":"Yakiniku","rating":4.7,"reviews":614},{"id":"sakura","name":"Ginza Sushi Sakura","lat":35.6715918,"lng":139.7611637,"layer":"Sunday","day":"Sun/Mon","time":"17:00 dinner or Mon lunch","kind":"idea","note":"Sushi. 4.9 on 700+ reviews, omakase with English-speaking chefs. Lunch 11:30 to 14:00, dinner 17:00 to 22:30. Reserve.","link":"https://www.google.com/maps/place/?q=place_id:ChIJhUSm67qLGGARJ_uVJlnW2nA","phone":"+81 3-6263-9325","cat":"Sushi","rating":4.9,"reviews":727},{"id":"onodera","name":"Sushi Ginza Onodera Souhonten","lat":35.6685747,"lng":139.7669052,"layer":"Sunday","day":"Sun","time":"17:00 dinner","kind":"idea","note":"Edomae omakase around 27,500 yen per person. Books only via Tabelog.","link":"https://www.google.com/maps/place/?q=place_id:ChIJn03jROeLGGAR06xN0PvgQiw","phone":"","cat":"Sushi","rating":4.4,"reviews":1113},{"id":"omoide","name":"Omoide Yokocho (Shinjuku)","lat":35.6927037,"lng":139.6995778,"layer":"Sunday","day":"Sun","time":"17:00 casual","kind":"idea","note":"Yakitori alleys. Go early with kids; tables are tight.","link":"https://www.google.com/maps/place/?q=place_id:ChIJP9eKBdeMGGAR0zzBXJNVj5A","phone":"","cat":"Yakitori alley","rating":4.2,"reviews":15831},{"id":"uobei","name":"Uobei Shibuya","lat":35.6594349,"lng":139.6979207,"layer":"Sunday","day":"Sun","time":"17:00 casual","kind":"idea","note":"Conveyor sushi ordered by touch screen. Cheap, fast, kids love it.","link":"https://www.google.com/maps/place/?q=place_id:ChIJaTXpw6mMGGARP-d-_tbssVE","phone":"","cat":"Conveyor sushi","rating":4.3,"reviews":9258},{"id":"godzilla","name":"Godzilla head, Hotel Gracery Shinjuku","lat":35.6953583,"lng":139.7020345,"layer":"Sunday","day":"Sun","time":"19:00","kind":"idea","note":"Kabukicho. Photo stop.","link":"https://www.google.com/maps/place/?q=place_id:ChIJF-U1JdiMGGARaay7KIrrtZ0","phone":"","cat":"Photo stop","rating":4.3,"reviews":6386},{"id":"donki","name":"MEGA Don Quijote Shibuya","lat":35.6603873,"lng":139.6978172,"layer":"Sunday","day":"Sun","time":"late","kind":"idea","note":"24h. Snacks, costumes, souvenirs, the song on loop.","link":"https://www.google.com/maps/place/?q=place_id:ChIJr4J6pKmMGGARdQLOgrzToH4","phone":"","cat":"Shop","rating":4.2,"reviews":22942},{"id":"ichiran","name":"Ichiran Shibuya","lat":35.6611185,"lng":139.7009846,"layer":"Sunday","day":"Sun","time":"late","kind":"idea","note":"24h. Ticket machine, solo booths, bowl through a curtain. Kids treat it as a game.","link":"https://www.google.com/maps/place/?q=place_id:ChIJOWucdKiMGGARbppa4b4CKA8","phone":"","cat":"Ramen","rating":4.4,"reviews":5300},{"id":"itoya","name":"Itoya Ginza","lat":35.6731273,"lng":139.7672138,"layer":"Monday","day":"Mon","time":"11:00","kind":"idea","note":"12 floors of stationery. Kids love it. Opens 10:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJKQAKAOSLGGARwGhpOXWgfYo","phone":"","cat":"Shop","rating":4.4,"reviews":20088},{"id":"ginzasix","name":"Ginza Six rooftop garden","lat":35.6699047,"lng":139.7641037,"layer":"Monday","day":"Mon","time":"11:00","kind":"idea","note":"Free, 13F. Cartier is in the same building.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ_wniXxmLGGARLgE_DYPbKiY","phone":"","cat":"Garden","rating":4.7,"reviews":166},{"id":"furusato","name":"Nikusho Furusato (wagyu lunch)","lat":35.6678339,"lng":139.7610373,"layer":"Monday","day":"Mon","time":"12:00 lunch","kind":"idea","note":"Sakakiyama wagyu hitsumabushi lunch set in a private room with a Ginza view. 11:00 to 15:00. Reserve. Done by 13:30 for Cartier.","link":"https://www.google.com/maps/place/?q=place_id:ChIJV0OGUACLGGART1crwJOftjo","phone":"+81 3-6274-6428","cat":"Wagyu","rating":4.8,"reviews":375},{"id":"mitsukoshi","name":"Ginza Mitsukoshi (depachika)","lat":35.6712864,"lng":139.7657382,"layer":"Monday","day":"Mon","time":"12:00 quick","kind":"idea","note":"Basement food hall. Wagyu bento, mochi. Eat on the 9F terrace.","link":"https://www.google.com/maps/place/?q=place_id:ChIJX9MhjuaLGGARvoMvduRK-5E","phone":"","cat":"Food hall","rating":4.1,"reviews":21458},{"id":"sembikiya","name":"Sembikiya Ginza (fruit parlour)","lat":35.6717509,"lng":139.7639102,"layer":"Monday","day":"Mon","time":"morning","kind":"idea","note":"The fancy fruit sando and parfait. 2F.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ1-kBMMaLGGARpOtW79woJ7c","phone":"","cat":"Dessert","rating":4.3,"reviews":320},{"id":"cartier","name":"Cartier (GINZA SIX, 2F; confirm it is this boutique)","lat":35.6698717,"lng":139.76401,"layer":"Monday","day":"Mon","time":"14:00","kind":"plan","note":"Appointment 14:00. Wrap up by 14:45 for the 15:00 departure.","link":"https://maps.app.goo.gl/oZRPAoT9bytfEFty8","phone":"","cat":"Shop","rating":3.0,"reviews":172},{"id":"facia","name":"Facia Ginza","lat":35.6682543,"lng":139.7641545,"layer":"Lidia spa","day":"Sat/Sun","time":"","kind":"idea","note":"Kobido facial and lymphatic face massage, 60 to 120 min. English-speaking. Visible lift, no redness. Book ahead.","link":"https://www.google.com/maps/place/?q=place_id:ChIJYSk9N-SLGGARr89k_q6kO7U","phone":"+81 3-6264-4779","cat":"Facial","rating":4.9,"reviews":265},{"id":"headspa-zen","name":"Head Spa ZEN","lat":35.6723639,"lng":139.7691316,"layer":"Lidia spa","day":"Sat/Sun","time":"21:00","kind":"idea","note":"Scalp massage, hair wash, steam. 60 min about 11,000 yen. Open to 23:00, private rooms. Book via Google or Instagram.","link":"https://www.google.com/maps/place/?q=place_id:ChIJdf6UuwuLGGARedICmyxbaUA","phone":"","cat":"Head spa","rating":4.9,"reviews":217},{"id":"carina","name":"CARINA GINZA","lat":35.6744857,"lng":139.7676581,"layer":"Lidia spa","day":"Mon","time":"10:00","kind":"idea","note":"Head spa with scalp analysis, 75 min. 5.0 on 200+ reviews. Slots go early in the month.","link":"https://www.google.com/maps/place/?q=place_id:ChIJD5yDd-SLGGARH5N6XSgOF1w","phone":"+81 3-6228-7705","cat":"Head spa","rating":5.0,"reviews":204},{"id":"mandarin","name":"The Spa at Mandarin Oriental Tokyo","lat":35.6869285,"lng":139.7728354,"layer":"Lidia spa","day":"Sat","time":"14:00 to 16:30","kind":"idea","note":"Forbes five-star hotel spa, facials and massage, spa suites with views. 10 min walk to Ninja Tokyo.","link":"https://www.google.com/maps/place/?q=place_id:ChIJXRiSj9iLGGAR7ykLrJn1Hyc","phone":"+81 3-3270-8300","cat":"Hotel spa","rating":4.7,"reviews":29},{"id":"aman","name":"Aman Tokyo Spa","lat":35.6853479,"lng":139.7653624,"layer":"Lidia spa","day":"Sun","time":"09:00 to 12:00","kind":"idea","note":"The splurge: facial or massage plus the bath over the city, roughly 280 USD for 60 min. Marunouchi Line to Shibuya after.","link":"https://www.google.com/maps/place/?q=place_id:ChIJnQ4gh_iLGGARIrphRhGwwhQ","phone":"+81 3-5224-3344","cat":"Hotel spa","rating":4.7,"reviews":43},{"id":"shiseido","name":"Shiseido The Store","lat":35.6687904,"lng":139.7620733,"layer":"Lidia spa","day":"Mon","time":"morning","kind":"idea","note":"Skin analysis and consultation, bottle engraving. 30 min add-on.","link":"https://www.google.com/maps/place/?q=place_id:ChIJmw5aheiLGGARFrO7AvwggR8","phone":"","cat":"Beauty","rating":4.1,"reviews":696}];
-function dayOf(p){ return picks[p.id]?.day || p.day; }
-function timeOf(p){ return picks[p.id]?.time || p.time || ""; }
-function whenText(p){ return esc(dayOf(p)) + (timeOf(p) ? " · " + esc(timeOf(p)) : ""); }
-const TABS = [
-  {id:"all", label:"Everything", filter:p=>true},
-  {id:"fri", label:"Friday", filter:p=>dayOf(p).includes("Fri")||(!picks[p.id]?.day&&(p.layer==="Late dinner"||p.layer==="Hotel & transport"))},
-  {id:"sat", label:"Saturday", filter:p=>dayOf(p).includes("Sat")},
-  {id:"sun", label:"Sunday", filter:p=>dayOf(p).includes("Sun")},
-  {id:"mon", label:"Monday", filter:p=>dayOf(p).includes("Mon")},
-  {id:"lidia", label:"Lidia", filter:p=>p.layer==="Lidia spa"},
-  {id:"late", label:"Late dinner", filter:p=>p.layer==="Late dinner"},
-];
-let tab = "all", selected = null, picks = {}, db = null, canWrite = null;
-try{ const h=location.hash.replace("#",""); if(TABS.some(t=>t.id===h)) tab=h; }catch(e){}
+"use strict";
+// ============================================================ data
+const BUILD = "20261028-1950";
+const API = "https://script.google.com/macros/s/AKfycbzZ5b9Sin4Z2w5vYiQzKvRGQ7pkhDl1v45x8RKS93pube2-lxR4-UPAw0syMtcvkDfU/exec";
+const BASE = [{"id":"hotel","name":"ENT TERRACE GINZA PREMIUM (hotel)","lat":35.6702818,"lng":139.7697957,"layer":"Hotel & transport","day":"All","time":"","kind":"plan","note":"Ginza 3-14-6, next to Kabuki-za. 3 min walk to Higashi-Ginza (Hibiya + Asakusa lines). Check-in 16:00 to 01:00, check-out 10:00. Confirm luggage storage for Monday.","link":"https://www.google.com/maps/place/?q=place_id:ChIJZxZtaACLGGARJGjxfm6lr7g","phone":"+81 3-6264-1440","cat":"Hotel","rating":4.8,"reviews":28,"address":"3-chōme-14-6 Ginza, Chuo City, Tokyo 104-0061","hours":null},{"id":"higashi-ginza","name":"Higashi-Ginza Station","lat":35.6697003,"lng":139.7671399,"layer":"Hotel & transport","day":"All","time":"","kind":"plan","note":"Hibiya Line and Asakusa Line. Asakusa Line runs through onto Keikyu to Haneda, about 30 to 35 min on through-trains.","link":"https://www.google.com/maps/place/?q=place_id:ChIJK2bxJueLGGARwHHeH52hGiM","phone":"","cat":"Transport","rating":3.7,"reviews":544,"address":"4-chōme-10 Ginza, Chuo City, Tokyo 104-0061","hours":null},{"id":"haneda","name":"Haneda Airport Terminal 3","lat":35.5454613,"lng":139.7687222,"layer":"Hotel & transport","day":"Fri/Mon","time":"Fri 19:00 land, Mon 18:00 depart","kind":"plan","note":"Keikyu to Higashi-Ginza direct. Leave the hotel 15:00 Monday (14:00 if Narita).","link":"https://www.google.com/maps/place/?q=place_id:ChIJEzipOlRhGGAR3-3UwuMqAnI","phone":"","cat":"Transport","rating":null,"reviews":null,"address":"Terminal 3, 2-chōme-6-5 Hanedakūkō, Ota City, Tokyo 144-0041","hours":null},{"id":"kushikatsu","name":"Kushikatsu Tanaka Higashi-Ginza","lat":35.6702404,"lng":139.7682871,"layer":"Late dinner","day":"Fri","time":"late fallback","kind":"idea","note":"Backup if GOKU falls through. Osaka-style fried skewers, dice games, English QR menu. Fri to 01:00, Sat/Sun to 00:00. 2 min from the hotel. Best kid option, easiest walk-in.","link":"https://www.google.com/maps/place/?q=place_id:ChIJqXr3gPOLGGAROvbbByq3d-M","phone":"+81 3-6264-2774","cat":"Izakaya","rating":4.8,"reviews":4565,"address":"4-chōme-11-2 Ginza, Chuo City, Tokyo 104-0061","hours":{"Mon":[[1020,1440]],"Tue":[[1020,1500]],"Wed":[[1020,1500]],"Thu":[[1020,1500]],"Fri":[[1020,1500]],"Sat":[[660,1440]],"Sun":[[720,1440]]}},{"id":"goku","name":"GOKU Wagyu Sukiyaki Higashi-Ginza","lat":35.6658803,"lng":139.7715921,"layer":"Late dinner","day":"Fri","time":"22:00 dinner","kind":"plan","note":"Reserved Friday 22:00. Tsukiji 3-17-10, BAN Hotel 1F, 5 min walk from the hotel. Wagyu sukiyaki, truffle egg rice to finish. Counter seats, 45 min limit when busy, closes 23:00. Call if the flight runs late.","link":"https://www.google.com/maps/place/?q=place_id:ChIJlwHWGG2LGGARG2Agb191-zs","phone":"+81 3-6684-1095","cat":"Wagyu sukiyaki","rating":4.9,"reviews":3138,"address":"〒104-0045 Tokyo, Chuo City, Tsukiji, 3-chōme−17−10 BAN HOTEL 1F","hours":{"Mon":[[420,1380]],"Tue":[[420,1380]],"Wed":[[420,1380]],"Thu":[[420,1380]],"Fri":[[420,1380]],"Sat":[[420,1380]],"Sun":[[420,1380]]}},{"id":"itamae","name":"Itamae Sushi Prime, Ginza Six 6F","lat":35.6693354,"lng":139.7639026,"layer":"Late dinner","day":"Fri","time":"21:45","kind":"idea","note":"Counter sushi that takes families, English-speaking chefs. Daily to 23:00. 8 min walk.","link":"https://www.google.com/maps/place/?q=place_id:ChIJn4sfCACLGGARxHAI09MckQo","phone":"","cat":"Sushi","rating":4.7,"reviews":1043,"address":"6F, 6-chōme-10-1 Ginza, Chuo City, Tokyo 104-0061 (GINZA SIX)","hours":{"Mon":[[660,1380]],"Tue":[[660,1380]],"Wed":[[660,1380]],"Thu":[[660,1380]],"Fri":[[660,1380]],"Sat":[[660,1380]],"Sun":[[660,1380]]}},{"id":"oshio","name":"Oshio Sohonke (izakaya), Ginza 8-chome","lat":35.6683715,"lng":139.7586723,"layer":"Late dinner","day":"Fri","time":"21:45","kind":"idea","note":"Seafood, sashimi, grilled fish, fried chicken at Shimbashi prices. No reservation needed. Mon to Sat to 03:00, Sun to 23:00. Get off at Shimbashi on the way from Haneda.","link":"https://www.google.com/maps/place/?q=place_id:ChIJz6XtxsOLGGARR8RT5i9bH34","phone":"+81 3-6264-6451","cat":"Izakaya","rating":4.7,"reviews":117,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 8-chōme−3 西土橋ビル 1F・2F","hours":{"Mon":[[1020,1620]],"Tue":[[1020,1620]],"Wed":[[1020,1620]],"Thu":[[1020,1620]],"Fri":[[1020,1620]],"Sat":[[1020,1620]],"Sun":[[1020,1380]]}},{"id":"satsuma","name":"Kitashinchi Yakiniku Satsuma, Ginza 8-chome","lat":35.6691375,"lng":139.7603662,"layer":"Late dinner","day":"Fri","time":"21:45","kind":"idea","note":"Late-night yakiniku with proper wagyu; gyutan is the standout. Fri to 05:00, Sat/Sun to 23:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJHXFKSRSLGGAREScBWaLn_FA","phone":"+81 3-3573-2955","cat":"Yakiniku","rating":4.8,"reviews":1629,"address":"Boss Building, 8-chōme-5-24 Ginza, Chuo City, Tokyo 104-0061","hours":{"Mon":[[1050,1740]],"Tue":[[1020,1380]],"Wed":[[1050,1740]],"Thu":[[1050,1740]],"Fri":[[1050,1740]],"Sat":[[1020,1380]],"Sun":[[1020,1380]]}},{"id":"nobunaga","name":"Menya NOBUNAGA, Kyobashi (ramen)","lat":35.6764566,"lng":139.7704595,"layer":"Late dinner","day":"Fri","time":"late","kind":"idea","note":"Creamy chicken paitan ramen, 4.8 on 3,000+ reviews, ticket machine. Daily to 03:00. 10 min walk north.","link":"https://www.google.com/maps/place/?q=place_id:ChIJaQ9iDCyLGGARj48qFLQAcOs","phone":"","cat":"Ramen","rating":4.8,"reviews":3331,"address":"〒104-0031 Tokyo, Chuo City, Kyōbashi, 2-chōme−5−2 A・M京橋ビル","hours":{"Mon":[[600,1620]],"Tue":[[600,1620]],"Wed":[[600,1620]],"Thu":[[600,1620]],"Fri":[[600,1620]],"Sat":[[600,1620]],"Sun":[[600,1620]]}},{"id":"arashi","name":"Ramen Kagetsu Arashi, Ginza 7-chome","lat":35.6709503,"lng":139.7598062,"layer":"Late dinner","day":"Fri","time":"late","kind":"idea","note":"Chain, no queue, open almost all night. Spicy and vegan tantan options. Fri/Sat to 06:00, Sun to 23:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ24cTZwCLGGARG0GkLPDKkMI","phone":"","cat":"Ramen","rating":4.7,"reviews":65,"address":"7-chōme-2-107 Ginza, Chuo City, Tokyo 104-0061","hours":{"Mon":[[660,1620]],"Tue":[[660,1620]],"Wed":[[660,1620]],"Thu":[[660,1620]],"Fri":[[660,1800]],"Sat":[[660,1800]],"Sun":[[660,1380]]}},{"id":"sushisen","name":"Tsukiji Sushisen","lat":35.665609,"lng":139.769942,"layer":"Saturday","day":"Sat","time":"09:00 breakfast","kind":"idea","note":"Opens 06:00, counter, English spoken, bluefin set. Walk-in only. 10 min from the hotel.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ6U7P3d6LGGARGclkhX-j6EQ","phone":"+81 3-6226-3860","cat":"Sushi","rating":4.5,"reviews":150,"address":"4-chōme-9-7 Tsukiji, Chuo City, Tokyo 104-0045","hours":{"Mon":[[360,1290]],"Tue":[[360,1290]],"Wed":[[360,1290]],"Thu":[[360,1290]],"Fri":[[360,1290]],"Sat":[[360,1290]],"Sun":[[360,1290]]}},{"id":"koromo","name":"Tsukiji Koromo Sushi","lat":35.6658371,"lng":139.7710144,"layer":"Saturday","day":"Sat","time":"09:00 breakfast","kind":"idea","note":"Opens 08:30, 8 counter seats, 2,500 yen ten-piece omakase. Walk-in only.","link":"https://www.google.com/maps/place/?q=place_id:ChIJsZBxY0CLGGARkkHYYGyj_Yc","phone":"+81 3-6264-2626","cat":"Sushi","rating":4.4,"reviews":448,"address":"4-chōme-11-3 Tsukiji, Chuo City, Tokyo 104-0045","hours":{"Mon":[[510,900]],"Tue":[[510,900]],"Wed":[[510,900]],"Thu":[[510,900]],"Fri":[[510,900]],"Sat":[[510,900]],"Sun":[[510,900]]}},{"id":"sushidai","name":"Tsukiji Sushi Dai Honkan","lat":35.664581,"lng":139.7723,"layer":"Saturday","day":"Sat","time":"10:00","kind":"idea","note":"The famous one. Opens 10:30, about 4,200 yen omakase, queue before opening, no reservations.","link":"https://www.google.com/maps/place/?q=place_id:ChIJIw1YEtmLGGARdWgvKs50S7A","phone":"+81 3-3541-3738","cat":"Sushi","rating":4.4,"reviews":2562,"address":"6-chōme-21-2 Tsukiji, Chuo City, Tokyo 104-0045","hours":{"Mon":[[630,1290]],"Tue":[[630,1290]],"Wed":[[630,1290]],"Thu":[[630,1290]],"Fri":[[630,1290]],"Sat":[[630,1290]],"Sun":[[630,1290]]}},{"id":"tsukiji","name":"Tsukiji Outer Market (Fish Market & pancakes)","lat":35.6647703,"lng":139.7702515,"layer":"Saturday","day":"Sat","time":"11:00","kind":"plan","note":"Snack crawl: tamagoyaki on a stick, grilled tuna skewer, uni on a scallop, strawberry daifuku.","link":"https://maps.app.goo.gl/hyC3KD6DYyc7BED16","phone":"","cat":"Market","rating":4.2,"reviews":56307,"address":"〒104-0045 Tokyo, Chuo City, Tsukiji, 4-chōme−16","hours":null},{"id":"monja","name":"Tsukishima Monja Street","lat":35.6642944,"lng":139.7824662,"layer":"Saturday","day":"Sat","time":"12:00","kind":"idea","note":"One metro stop from Tsukiji. Runny okonomiyaki the kids cook themselves on the hotplate.","link":"https://www.google.com/maps/place/?q=place_id:ChIJZ8PuP3CJGGARAXwWdc4PGQw","phone":"","cat":"Street food","rating":4.2,"reviews":2899,"address":"1-chōme-3 Tsukishima, Chuo City, Tokyo 104-0052","hours":{"Mon":[[600,1350]],"Tue":[[600,1350]],"Wed":[[600,1350]],"Thu":[[600,1350]],"Fri":[[600,1350]],"Sat":[[600,1350]],"Sun":[[600,1350]]}},{"id":"teamlab","name":"teamLab Planets (Teamlabs again?)","lat":35.6491207,"lng":139.7897739,"layer":"Saturday","day":"Sat","time":"13:00","kind":"plan","note":"Your original 13:00 entry. Already done once; alternatives A, B, C below.","link":"https://share.google/9YorXrCVNPnhpzQPL","phone":"","cat":"Museum","rating":4.5,"reviews":57861,"address":"6-chōme-1-16 Toyosu, Koto City, Tokyo 135-0061","hours":{"Mon":[[480,1320]],"Tue":[[480,1320]],"Wed":[[480,1320]],"Thu":[[480,1320]],"Fri":[[480,1320]],"Sat":[[480,1320]],"Sun":[[480,1320]]}},{"id":"hamarikyu","name":"A: Hamarikyu Gardens","lat":35.6596559,"lng":139.7634091,"layer":"Saturday","day":"Sat","time":"13:00","kind":"idea","note":"Recommended route. 15 min walk from Tsukiji, 300 yen, tea house on the pond. Then the boat.","link":"https://www.google.com/maps/place/?q=place_id:ChIJwfegutyLGGARGjiY-L2eSps","phone":"+81 3-3541-0200","cat":"Garden","rating":4.5,"reviews":12863,"address":"1-1 Hamarikyūteien, Chuo City, Tokyo 104-0046","hours":{"Mon":[[540,1260]],"Tue":[[540,1260]],"Wed":[[540,1020]],"Thu":[[540,1020]],"Fri":[[540,1260]],"Sat":[[540,1260]],"Sun":[[540,1260]]}},{"id":"pier","name":"A: Hamarikyu pier (Tokyo Cruise)","lat":35.6600447,"lng":139.7670779,"layer":"Saturday","day":"Sat","time":"14:00","kind":"idea","note":"Boat up the Sumida to Asakusa, about 35 min. Check on the Tokyo Cruise site that the Hamarikyu stop is running; if not, board at Hinode Pier.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ0ZJWPdqLGGARSXLrOizQr3Q","phone":"","cat":"Boat","rating":4.0,"reviews":192,"address":"1 Hamarikyuteien, Chuo City, Tokyo 104-0046 (inside the garden)","hours":null},{"id":"sensoji","name":"A: Senso-ji + Nakamise","lat":35.7147651,"lng":139.7966553,"layer":"Saturday","day":"Sat","time":"15:00","kind":"idea","note":"Ningyo-yaki and taiyaki off the mold on Nakamise. Leave Asakusa by 16:15.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ8T1GpMGOGGARDYGSgpooDWw","phone":"","cat":"Temple","rating":4.6,"reviews":100742,"address":"2-chōme-3-1 Asakusa, Taito City, Tokyo 111-0032","hours":null},{"id":"kagetsudo","name":"A: Kagetsudo melonpan","lat":35.7146332,"lng":139.7951685,"layer":"Saturday","day":"Sat","time":"15:00","kind":"idea","note":"Melonpan hot from the oven, short queue. Sat to 17:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJSTVEQMCOGGARa74pG98OyD0","phone":"","cat":"Bakery","rating":4.4,"reviews":2986,"address":"2-chōme-7-13 Asakusa, Taito City, Tokyo 111-0032","hours":{"Mon":[[540,990]],"Tue":[[540,990]],"Wed":[[540,990]],"Thu":[[540,990]],"Fri":[[540,990]],"Sat":[[540,1020]],"Sun":[[540,1020]]}},{"id":"suzukien","name":"A: Suzukien matcha gelato","lat":35.7163436,"lng":139.7969391,"layer":"Saturday","day":"Sat","time":"15:00","kind":"idea","note":"Seven matcha strengths. Level 7 is a dare for the kids. To 17:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJidgn3MGOGGARVSZF3Mq9vho","phone":"","cat":"Dessert","rating":4.4,"reviews":4072,"address":"3-chōme-4-3 Asakusa, Taito City, Tokyo 111-0032","hours":{"Mon":[[660,1020]],"Tue":[[660,1020]],"Wed":[[660,1020]],"Thu":[[660,1020]],"Fri":[[660,1020]],"Sat":[[660,1020]],"Sun":[[660,1020]]}},{"id":"miraikan","name":"B: Miraikan science museum (Odaiba)","lat":35.6193359,"lng":139.7763995,"layer":"Saturday","day":"Sat","time":"13:00","kind":"idea","note":"Yurikamome from Shimbashi. Giant globe, ISS module, hands-on floors.","link":"https://www.google.com/maps/place/?q=place_id:ChIJz_149P6JGGARoImMn3NlsfY","phone":"","cat":"Museum","rating":4.1,"reviews":17007,"address":"2-chōme-3-6 Aomi, Koto City, Tokyo 135-0064","hours":null},{"id":"joypolis","name":"B: Joypolis (Odaiba)","lat":35.62866,"lng":139.775364,"layer":"Saturday","day":"Sat","time":"14:00","kind":"idea","note":"Indoor rides and arcade. Sat 10:00 to 20:00. Waits can hit 60 min.","link":"https://www.google.com/maps/place/?q=place_id:ChIJuTdPXvaJGGARJhT_Ai6urFQ","phone":"","cat":"Arcade","rating":4.0,"reviews":8141,"address":"〒135-0091 Tokyo, Minato City, Daiba, 1-chōme−6−1 DECKS Tokyo Beach 3F–5F","hours":{"Mon":[[600,1140]],"Tue":[[600,1200]],"Wed":[[660,1140]],"Thu":[[660,1140]],"Fri":[[660,1140]],"Sat":[[600,1200]],"Sun":[[600,1200]]}},{"id":"skytree","name":"C: Tokyo Skytree","lat":35.7100627,"lng":139.8107004,"layer":"Saturday","day":"Sat","time":"13:00","kind":"idea","note":"25 min by subway from Tsukiji. Book the deck in advance.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ35ov0dCOGGARKvdDH7NPHX0","phone":"","cat":"Viewpoint","rating":4.4,"reviews":120539,"address":"1-chōme-1-2 Oshiage, Sumida City, Tokyo 131-0045","hours":{"Mon":[[540,1320]],"Tue":[[600,1320]],"Wed":[[600,1320]],"Thu":[[600,1320]],"Fri":[[600,1320]],"Sat":[[540,1320]],"Sun":[[540,1320]]}},{"id":"sumida","name":"C: Sumida Aquarium","lat":35.7099301,"lng":139.8095855,"layer":"Saturday","day":"Sat","time":"14:00","kind":"idea","note":"Same complex as Skytree. Penguins, jellyfish, 90 min. Walk in.","link":"https://www.google.com/maps/place/?q=place_id:ChIJO6bK3daOGGARYEFGg4Xm-VI","phone":"","cat":"Aquarium","rating":4.2,"reviews":12306,"address":"〒131-0045 Tokyo, Sumida City, Oshiage, 1-chōme−1−2 東京スカイツリータウン・ソラマチ 5F–6F","hours":{"Mon":[[600,1200]],"Tue":[[540,1260]],"Wed":[[600,1200]],"Thu":[[600,1200]],"Fri":[[600,1200]],"Sat":[[540,1260]],"Sun":[[540,1260]]}},{"id":"coredo","name":"Coredo Muromachi","lat":35.6865187,"lng":139.7740345,"layer":"Saturday","day":"Sat","time":"16:00","kind":"idea","note":"If early for dinner. Shops and restaurants next to Mitsukoshimae station.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ3wbbClWJGGARHXtIUuwJqW8","phone":"","cat":"Shopping","rating":3.9,"reviews":7757,"address":"2-chōme-2-1 Nihonbashimuromachi, Chuo City, Tokyo 103-0022","hours":{"Mon":[[660,1200]],"Tue":[[600,1200]],"Wed":[[660,1200]],"Thu":[[660,1200]],"Fri":[[660,1200]],"Sat":[[600,1200]],"Sun":[[600,1200]]}},{"id":"pokemon-dx","name":"Pokemon Center DX, Nihonbashi Takashimaya","lat":35.6802902,"lng":139.7742695,"layer":"Saturday","day":"Sat","time":"16:00","kind":"idea","note":"The big one, with the cafe. 10:30 to 21:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJCVAO3leJGGARvCoZ_hJkye4","phone":"","cat":"Shop","rating":4.5,"reviews":4268,"address":"髙島屋S.C.東館 5F, 2-chōme-11-2 Nihonbashi, Chuo City, Tokyo 103-0027","hours":{"Mon":[[630,1260]],"Tue":[[630,1260]],"Wed":[[630,1260]],"Thu":[[630,1260]],"Fri":[[630,1260]],"Sat":[[630,1260]],"Sun":[[630,1260]]}},{"id":"ninja","name":"Ninja Tokyo (dinner)","lat":35.6845764,"lng":139.7675608,"layer":"Saturday","day":"Sat","time":"17:00","kind":"plan","note":"Otemachi, basement of Shin-Otemachi Building, 5 min from Tokyo Station. Reservation needed. Closed Tue and Sun.","link":"https://maps.app.goo.gl/rGcnkVWgX5hnNswe7","phone":"","cat":"Theme dinner","rating":4.5,"reviews":1402,"address":"〒100-0004 Tokyo, Chiyoda City, Ōtemachi, 2-chōme−2−1 新大手町ビル B1F","hours":{"Mon":[[690,870],[1020,1320]],"Tue":[],"Wed":[[690,870],[1020,1320]],"Thu":[[690,870],[1020,1320]],"Fri":[[690,870],[1020,1320]],"Sat":[[690,870],[1020,1320]],"Sun":[]}},{"id":"gigo","name":"GiGO Akihabara Building 3","lat":35.6992456,"lng":139.7709552,"layer":"Saturday","day":"Sat","time":"21:00","kind":"idea","note":"Claw machines, retro floor on 6F. To 23:30.","link":"https://www.google.com/maps/place/?q=place_id:ChIJR-PMBx2MGGARPFrgtULaJB0","phone":"","cat":"Arcade","rating":4.1,"reviews":3900,"address":"〒101-0021 Tokyo, Chiyoda City, Sotokanda, 1-chōme−11−11","hours":{"Mon":[[600,1410]],"Tue":[[600,1410]],"Wed":[[600,1410]],"Thu":[[600,1410]],"Fri":[[600,1410]],"Sat":[[600,1410]],"Sun":[[600,1410]]}},{"id":"gachapon","name":"Akihabara Gachapon Hall","lat":35.7018425,"lng":139.7712256,"layer":"Saturday","day":"Sat","time":"21:00","kind":"idea","note":"Hundreds of capsule machines. 1,000 yen budget each. Closes 20:00 (19:00 Sun), so go before the arcade.","link":"https://www.google.com/maps/place/?q=place_id:ChIJBztW3x2MGGARadHYl5vTEK0","phone":"","cat":"Shop","rating":4.0,"reviews":1656,"address":"〒101-0021 Tokyo, Chiyoda City, Sotokanda, 3-chōme−15−5 MNビル 1F","hours":{"Mon":[[660,1200]],"Tue":[[660,1200]],"Wed":[[660,1200]],"Thu":[[660,1200]],"Fri":[[660,1200]],"Sat":[[660,1200]],"Sun":[[660,1140]]}},{"id":"bills","name":"bills Ginza (pancakes)","lat":35.6732429,"lng":139.7667056,"layer":"Sunday","day":"Sun","time":"08:30 breakfast","kind":"idea","note":"Ricotta pancakes, 12F. Morning slots fill fast, book by phone.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ4wnkFeSLGGARliQwUPoODeY","phone":"+81 50-3188-6633","cat":"Breakfast","rating":4.1,"reviews":3300,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 2-chōme−6−12 Okura House 12F","hours":{"Mon":[[510,1380]],"Tue":[[510,1380]],"Wed":[[510,1380]],"Thu":[[510,1380]],"Fri":[[510,1380]],"Sat":[[510,1380]],"Sun":[[510,1380]]}},{"id":"centre","name":"Centre The Bakery","lat":35.6755334,"lng":139.7665952,"layer":"Sunday","day":"Sun/Mon","time":"09:00 breakfast","kind":"idea","note":"Shokupan toast, French toast, jam and butter set. No reservations, queue by 11:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJE8S0lOSLGGAR84AdzQ71F3I","phone":"+81 3-3562-1016","cat":"Bakery","rating":4.2,"reviews":3367,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 1-chōme−2−1 紺屋ビル 1F","hours":{"Mon":[[540,1080]],"Tue":[[540,1080]],"Wed":[[540,1080]],"Thu":[[540,1080]],"Fri":[[540,1080]],"Sat":[[540,1080]],"Sun":[[540,1080]]}},{"id":"meiji","name":"Meiji Shrine","lat":35.6763976,"lng":139.6993259,"layer":"Sunday","day":"Sun","time":"10:00","kind":"plan","note":"Start at 09:00 if you can; busy from 10:30.","link":"https://share.google/VdWJqIUiXIhUAaZ5F","phone":"","cat":"Shrine","rating":4.7,"reviews":54136,"address":"1-1 Yoyogikamizonochō, Shibuya, Tokyo 151-8557","hours":null},{"id":"takeshita","name":"Takeshita Street","lat":35.6710335,"lng":139.7051821,"layer":"Sunday","day":"Sun","time":"11:00","kind":"plan","note":"Crazy shopping. Marion Crepes and the purikura booths are here.","link":"https://share.google/1fRoG35Fh8LB1kJQH","phone":"","cat":"Shopping","rating":null,"reviews":null,"address":"Takeshita St, 1-chōme Jingūmae, Shibuya, Tokyo 150-0001","hours":null},{"id":"marion","name":"Marion Crepes","lat":35.6712605,"lng":139.7048981,"layer":"Sunday","day":"Sun","time":"11:00","kind":"idea","note":"The original Harajuku crepe stand. Pick the one with cheesecake inside.","link":"https://www.google.com/maps/place/?q=place_id:ChIJPft3N7uMGGAReOEjLwqJIm0","phone":"","cat":"Dessert","rating":4.0,"reviews":1901,"address":"〒150-0001 Tokyo, Shibuya, Jingūmae, 1-chōme−6−15 ジュネスビル 1F","hours":{"Mon":[[600,1260]],"Tue":[[600,1260]],"Wed":[[600,1260]],"Thu":[[600,1260]],"Fri":[[600,1260]],"Sat":[[600,1260]],"Sun":[[600,1260]]}},{"id":"purikura","name":"Purikura Shop NOA","lat":35.6714387,"lng":139.7036819,"layer":"Sunday","day":"Sun","time":"11:00","kind":"idea","note":"Photo booths. Everyone in, no exceptions. 100 yen coins, about 500 yen a machine.","link":"https://www.google.com/maps/place/?q=place_id:ChIJy8og57qMGGARfZDr4L8_bXI","phone":"","cat":"Photo booth","rating":4.5,"reviews":380,"address":"B1, 1-chōme-17-5 Jingūmae, Shibuya, Tokyo 150-0001","hours":{"Mon":[[480,1380]],"Tue":[[480,1380]],"Wed":[[480,1380]],"Thu":[[480,1380]],"Fri":[[480,1380]],"Sat":[[480,1380]],"Sun":[[480,1380]]}},{"id":"gyozarou","name":"Harajuku Gyozarou","lat":35.6675016,"lng":139.7061026,"layer":"Sunday","day":"Sun","time":"12:00 lunch","kind":"idea","note":"Cheap, fast gyoza at a U-shaped counter. Cash only. Queue moves.","link":"https://www.google.com/maps/place/?q=place_id:ChIJF6tIb6SMGGAR2iuQeXjrMIs","phone":"","cat":"Gyoza","rating":4.0,"reviews":4478,"address":"6-chōme-2-4 Jingūmae, Shibuya, Tokyo 150-0001","hours":{"Mon":[[690,1290]],"Tue":[[690,1290]],"Wed":[[690,1290]],"Thu":[[690,1290]],"Fri":[[690,1290]],"Sat":[[690,1290]],"Sun":[[690,1290]]}},{"id":"motomura","name":"Gyukatsu Motomura, Shibuya","lat":35.656977,"lng":139.7039981,"layer":"Sunday","day":"Sun","time":"12:00 lunch","kind":"idea","note":"Rare beef cutlet you finish on a hot stone. 4.9 on 17,000 reviews. Short queue.","link":"https://www.google.com/maps/place/?q=place_id:ChIJn2FoeFmLGGARnIog2ijRZXw","phone":"","cat":"Gyukatsu","rating":4.9,"reviews":16982,"address":"〒150-0002 Tokyo, Shibuya, 3-chōme−18−10 大野ビル2号館 B1F","hours":{"Mon":[[660,1320]],"Tue":[[660,1320]],"Wed":[[660,1320]],"Thu":[[660,1320]],"Fri":[[660,1320]],"Sat":[[660,1320]],"Sun":[[660,1320]]}},{"id":"shibuya-sky","name":"Shibuya Sky","lat":35.6586719,"lng":139.7019848,"layer":"Sunday","day":"Sun","time":"13:00","kind":"plan","note":"Timed entry, sells out on weekends. Booked.","link":"https://maps.app.goo.gl/KP2BepAru4KQ97QM6","phone":"","cat":"Viewpoint","rating":4.6,"reviews":27690,"address":"〒150-6145 Tokyo, Shibuya, 2-chōme−24−12 スクランブルスクエア 14F","hours":{"Mon":[[600,1350]],"Tue":[[600,1350]],"Wed":[[600,1350]],"Thu":[[600,1350]],"Fri":[[600,1350]],"Sat":[[600,1350]],"Sun":[[600,1350]]}},{"id":"nintendo","name":"Nintendo Tokyo, Shibuya Parco 6F","lat":35.6621161,"lng":139.6986385,"layer":"Sunday","day":"Sun","time":"14:00","kind":"idea","note":"Same floor as the Pokemon Center. 10:00 to 21:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ7Su1FK6NGGARAr7UK5NjmMo","phone":"","cat":"Shop","rating":4.5,"reviews":4621,"address":"〒150-0042 Tokyo, Shibuya, Udagawachō, 15−1 渋谷PARCO 6F","hours":{"Mon":[[600,1260]],"Tue":[[600,1260]],"Wed":[[600,1260]],"Thu":[[600,1260]],"Fri":[[600,1260]],"Sat":[[600,1260]],"Sun":[[600,1260]]}},{"id":"pokemon-shibuya","name":"Pokemon Center Shibuya","lat":35.6619557,"lng":139.6984408,"layer":"Sunday","day":"Sun","time":"15:00","kind":"plan","note":"Shibuya Parco 6F.","link":"https://maps.app.goo.gl/YFqHQRvXeYU8XpFm9","phone":"","cat":"Shop","rating":4.3,"reviews":3078,"address":"〒150-8377 Tokyo, Shibuya, Udagawachō, 15−1 渋谷PARCO 6F","hours":{"Mon":[[600,1260]],"Tue":[[600,1260]],"Wed":[[600,1260]],"Thu":[[600,1260]],"Fri":[[600,1260]],"Sat":[[600,1260]],"Sun":[[600,1260]]}},{"id":"goyemon","name":"goyemon Shibuya (sandals)","lat":35.657224,"lng":139.7087487,"layer":"Sunday","day":"Sun","time":"15:00","kind":"plan","note":"Tiendas: Sandalias Goyemon. 10 min walk east of Shibuya station. Sun 11:00 to 19:00.","link":"https://maps.app.goo.gl/xAo1hv5VsZmvSR649","phone":"","cat":"Shop","rating":5.0,"reviews":1278,"address":"1-chōme-1-36 Higashi, Shibuya, Tokyo 150-0011","hours":{"Mon":[[720,1140]],"Tue":[[720,1140]],"Wed":[[720,1140]],"Thu":[[720,1140]],"Fri":[[720,1140]],"Sat":[[660,1140]],"Sun":[[660,1140]]}},{"id":"miyashita","name":"Miyashita Park","lat":35.661791,"lng":139.7018507,"layer":"Sunday","day":"Sun","time":"16:00","kind":"idea","note":"Rooftop park, Shibuya Yokocho food alley underneath. Free.","link":"https://www.google.com/maps/place/?q=place_id:ChIJURWUIuaNGGARvtlnJNz-AFQ","phone":"","cat":"Park","rating":4.2,"reviews":5598,"address":"6-chōme-20-10 Jingūmae, Shibuya, Tokyo 150-0001","hours":{"Mon":[[660,1260]],"Tue":[[660,1260]],"Wed":[[660,1260]],"Thu":[[660,1260]],"Fri":[[660,1260]],"Sat":[[660,1260]],"Sun":[[660,1260]]}},{"id":"azasu","name":"Yakiniku Azasu Ginza","lat":35.6710873,"lng":139.7631833,"layer":"Sunday","day":"Sun","time":"17:00 dinner","kind":"idea","note":"Wagyu. 11F counter with a view, courses from 8,800 yen, English-speaking staff, until 23:00. Reserve.","link":"https://www.google.com/maps/place/?q=place_id:ChIJOZbw01KLGGARQuuqvK91TrU","phone":"+81 50-1808-6464","cat":"Yakiniku","rating":4.8,"reviews":576,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 5-chōme−5−12 Hulic&New Ginza Miyuki 5, 11F","hours":{"Mon":[[1020,1380]],"Tue":[[1020,1380]],"Wed":[[1020,1380]],"Thu":[[1020,1380]],"Fri":[[1020,1380]],"Sat":[[690,870],[1020,1380]],"Sun":[[690,870],[1020,1380]]}},{"id":"beefmaster","name":"The Beef Master Ginza","lat":35.6741752,"lng":139.7669788,"layer":"Sunday","day":"Sun","time":"17:00 dinner","kind":"idea","note":"Wagyu. Each table in its own private room, course menus, English menus, until 23:00. Reserve.","link":"https://www.google.com/maps/place/?q=place_id:ChIJVx0L_e6LGGARJmlbdvm2VCk","phone":"+81 3-6263-2911","cat":"Yakiniku","rating":4.7,"reviews":614,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 2-chōme−5−19 ヒューリック銀座二丁目ビル 8F","hours":{"Mon":[[660,1380]],"Tue":[[660,1380]],"Wed":[[660,1380]],"Thu":[[660,1380]],"Fri":[[660,1380]],"Sat":[[660,1380]],"Sun":[[660,1380]]}},{"id":"sakura","name":"Ginza Sushi Sakura","lat":35.6715918,"lng":139.7611637,"layer":"Sunday","day":"Sun/Mon","time":"17:00 dinner or Mon lunch","kind":"idea","note":"Sushi. 4.9 on 700+ reviews, omakase with English-speaking chefs. Lunch 11:30 to 14:00, dinner 17:00 to 22:30. Reserve.","link":"https://www.google.com/maps/place/?q=place_id:ChIJhUSm67qLGGARJ_uVJlnW2nA","phone":"+81 3-6263-9325","cat":"Sushi","rating":4.9,"reviews":727,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 6-chōme−3−16 泰明ビル 本館1F","hours":{"Mon":[[690,840],[1020,1350]],"Tue":[[690,840],[1020,1350]],"Wed":[[690,840],[1020,1350]],"Thu":[[690,840],[1020,1350]],"Fri":[[690,840],[1020,1350]],"Sat":[[690,840],[1020,1350]],"Sun":[[690,840],[1020,1350]]}},{"id":"onodera","name":"Sushi Ginza Onodera Souhonten","lat":35.6685747,"lng":139.7669052,"layer":"Sunday","day":"Sun","time":"17:00 dinner","kind":"idea","note":"Edomae omakase around 27,500 yen per person. Books only via Tabelog.","link":"https://www.google.com/maps/place/?q=place_id:ChIJn03jROeLGGAR06xN0PvgQiw","phone":"","cat":"Sushi","rating":4.4,"reviews":1113,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 5-chōme−14−14 サンリット銀座ビルIII B1F・2F","hours":{"Mon":[[660,885],[1020,1335]],"Tue":[[660,885],[1020,1335]],"Wed":[[660,885],[1020,1335]],"Thu":[[660,885],[1020,1335]],"Fri":[[660,885],[1020,1335]],"Sat":[[660,885],[1020,1335]],"Sun":[[660,885],[1020,1335]]}},{"id":"omoide","name":"Omoide Yokocho (Shinjuku)","lat":35.6927037,"lng":139.6995778,"layer":"Sunday","day":"Sun","time":"17:00 casual","kind":"idea","note":"Yakitori alleys. Go early with kids; tables are tight.","link":"https://www.google.com/maps/place/?q=place_id:ChIJP9eKBdeMGGAR0zzBXJNVj5A","phone":"","cat":"Yakitori alley","rating":4.2,"reviews":15831,"address":"1-chōme-2-2 Nishishinjuku, Shinjuku City, Tokyo 160-0023","hours":{"Mon":[[0,1440]],"Tue":[[0,1440]],"Wed":[[0,1440]],"Thu":[[0,1440]],"Fri":[[0,1440]],"Sat":[[0,1440]],"Sun":[[0,1440]]}},{"id":"uobei","name":"Uobei Shibuya","lat":35.6594349,"lng":139.6979207,"layer":"Sunday","day":"Sun","time":"17:00 casual","kind":"idea","note":"Conveyor sushi ordered by touch screen. Cheap, fast, kids love it.","link":"https://www.google.com/maps/place/?q=place_id:ChIJaTXpw6mMGGARP-d-_tbssVE","phone":"","cat":"Conveyor sushi","rating":4.3,"reviews":9258,"address":"〒150-0043 Tokyo, Shibuya, Dōgenzaka, 2-chōme−29−11 Central Bldg. 6, 1F","hours":{"Mon":[[660,1380]],"Tue":[[660,1380]],"Wed":[[660,1380]],"Thu":[[660,1380]],"Fri":[[660,1380]],"Sat":[[630,1380]],"Sun":[[630,1380]]}},{"id":"godzilla","name":"Godzilla head, Hotel Gracery Shinjuku","lat":35.6953583,"lng":139.7020345,"layer":"Sunday","day":"Sun","time":"19:00","kind":"idea","note":"Kabukicho. Photo stop.","link":"https://www.google.com/maps/place/?q=place_id:ChIJF-U1JdiMGGARaay7KIrrtZ0","phone":"","cat":"Photo stop","rating":4.3,"reviews":6386,"address":"1-chōme-19-1 Kabukichō, Shinjuku City, Tokyo 160-8466","hours":{"Mon":[[0,1440]],"Tue":[[0,1440]],"Wed":[[0,1440]],"Thu":[[0,1440]],"Fri":[[0,1440]],"Sat":[[0,1440]],"Sun":[[0,1440]]}},{"id":"donki","name":"MEGA Don Quijote Shibuya","lat":35.6603873,"lng":139.6978172,"layer":"Sunday","day":"Sun","time":"late","kind":"idea","note":"24h. Snacks, costumes, souvenirs, the song on loop.","link":"https://www.google.com/maps/place/?q=place_id:ChIJr4J6pKmMGGARdQLOgrzToH4","phone":"","cat":"Shop","rating":4.2,"reviews":22942,"address":"28-6 Udagawachō, Shibuya, Tokyo 150-0042","hours":{"Mon":[[0,1440]],"Tue":[[0,1440]],"Wed":[[0,1440]],"Thu":[[0,1440]],"Fri":[[0,1440]],"Sat":[[0,1440]],"Sun":[[0,1440]]}},{"id":"ichiran","name":"Ichiran Shibuya","lat":35.6611185,"lng":139.7009846,"layer":"Sunday","day":"Sun","time":"late","kind":"idea","note":"24h. Ticket machine, solo booths, bowl through a curtain. Kids treat it as a game.","link":"https://www.google.com/maps/place/?q=place_id:ChIJOWucdKiMGGARbppa4b4CKA8","phone":"","cat":"Ramen","rating":4.4,"reviews":5300,"address":"〒150-0041 Tokyo, Shibuya, Jinnan, 1-chōme−22−7 岩本ビル B1F","hours":{"Mon":[[0,1440]],"Tue":[[0,1440]],"Wed":[[0,1440]],"Thu":[[0,1440]],"Fri":[[0,1440]],"Sat":[[0,1440]],"Sun":[[0,1440]]}},{"id":"itoya","name":"Itoya Ginza","lat":35.6731273,"lng":139.7672138,"layer":"Monday","day":"Mon","time":"11:00","kind":"idea","note":"12 floors of stationery. Kids love it. Opens 10:00.","link":"https://www.google.com/maps/place/?q=place_id:ChIJKQAKAOSLGGARwGhpOXWgfYo","phone":"","cat":"Shop","rating":4.4,"reviews":20088,"address":"2-chōme-7-15 Ginza, Chuo City, Tokyo 104-0061","hours":{"Mon":[[600,1200]],"Tue":[[600,1200]],"Wed":[[600,1200]],"Thu":[[600,1200]],"Fri":[[600,1200]],"Sat":[[600,1200]],"Sun":[[600,1140]]}},{"id":"ginzasix","name":"Ginza Six rooftop garden","lat":35.6699047,"lng":139.7641037,"layer":"Monday","day":"Mon","time":"11:00","kind":"idea","note":"Free, 13F. Cartier is in the same building.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ_wniXxmLGGARLgE_DYPbKiY","phone":"","cat":"Garden","rating":4.7,"reviews":166,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 6-chōme−10−11 GINZA SIX rooftop","hours":{"Mon":[[420,1380]],"Tue":[[420,1380]],"Wed":[[420,1380]],"Thu":[[420,1380]],"Fri":[[420,1380]],"Sat":[[420,1380]],"Sun":[[420,1380]]}},{"id":"furusato","name":"Nikusho Furusato (wagyu lunch)","lat":35.6678339,"lng":139.7610373,"layer":"Monday","day":"Mon","time":"12:00 lunch","kind":"idea","note":"Sakakiyama wagyu hitsumabushi lunch set in a private room with a Ginza view. 11:00 to 15:00. Reserve. Done by 13:30 for Cartier.","link":"https://www.google.com/maps/place/?q=place_id:ChIJV0OGUACLGGART1crwJOftjo","phone":"+81 3-6274-6428","cat":"Wagyu","rating":4.8,"reviews":375,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 8-chōme−8−11 博品館ビル 5F","hours":{"Mon":[[660,900],[1020,1350]],"Tue":[[660,900],[1020,1350]],"Wed":[[660,900],[1020,1350]],"Thu":[[660,900],[1020,1350]],"Fri":[[660,900],[1020,1350]],"Sat":[[660,900],[1020,1350]],"Sun":[[660,900],[1020,1350]]}},{"id":"mitsukoshi","name":"Ginza Mitsukoshi (depachika)","lat":35.6712864,"lng":139.7657382,"layer":"Monday","day":"Mon","time":"12:00 quick","kind":"idea","note":"Basement food hall. Wagyu bento, mochi. Eat on the 9F terrace.","link":"https://www.google.com/maps/place/?q=place_id:ChIJX9MhjuaLGGARvoMvduRK-5E","phone":"","cat":"Food hall","rating":4.1,"reviews":21458,"address":"4-chōme-6-16 Ginza, Chuo City, Tokyo 104-8212","hours":{"Mon":[[600,1200]],"Tue":[[600,1200]],"Wed":[[600,1200]],"Thu":[[600,1200]],"Fri":[[600,1200]],"Sat":[[600,1200]],"Sun":[[600,1200]]}},{"id":"sembikiya","name":"Sembikiya Ginza (fruit parlour)","lat":35.6717509,"lng":139.7639102,"layer":"Monday","day":"Mon","time":"morning","kind":"idea","note":"The fancy fruit sando and parfait. 2F.","link":"https://www.google.com/maps/place/?q=place_id:ChIJ1-kBMMaLGGARpOtW79woJ7c","phone":"","cat":"Dessert","rating":4.3,"reviews":320,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 5-chōme−5−1 New Ginza Senbikiya Bldg., 2F","hours":{"Mon":[[660,1080]],"Tue":[[660,1080]],"Wed":[[660,1080]],"Thu":[[660,1080]],"Fri":[[660,1140]],"Sat":[[660,1140]],"Sun":[[660,1080]]}},{"id":"cartier","name":"Cartier (GINZA SIX, 2F; confirm it is this boutique)","lat":35.6698717,"lng":139.76401,"layer":"Monday","day":"Mon","time":"14:00","kind":"plan","note":"Appointment 14:00. Wrap up by 14:45 for the 15:00 departure.","link":"https://maps.app.goo.gl/oZRPAoT9bytfEFty8","phone":"","cat":"Shop","rating":3.0,"reviews":172,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 6-chōme−10−1 GINZA SIX 2F","hours":{"Mon":[[630,1230]],"Tue":[[630,1230]],"Wed":[[630,1230]],"Thu":[[630,1230]],"Fri":[[630,1230]],"Sat":[[630,1230]],"Sun":[[630,1230]]}},{"id":"facia","name":"Facia Ginza","lat":35.6682543,"lng":139.7641545,"layer":"Lidia spa","day":"Sat/Sun","time":"","kind":"idea","note":"Kobido facial and lymphatic face massage, 60 to 120 min. English-speaking. Visible lift, no redness. Book ahead.","link":"https://www.google.com/maps/place/?q=place_id:ChIJYSk9N-SLGGARr89k_q6kO7U","phone":"+81 3-6264-4779","cat":"Facial","rating":4.9,"reviews":265,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 7-chōme−12−4 銀座ウェイフェアビル 4F","hours":{"Mon":[[600,1320]],"Tue":[[600,1140]],"Wed":[[600,1320]],"Thu":[[600,1320]],"Fri":[[600,1320]],"Sat":[[600,1140]],"Sun":[[600,1140]]}},{"id":"headspa-zen","name":"Head Spa ZEN","lat":35.6723639,"lng":139.7691316,"layer":"Lidia spa","day":"Sat/Sun","time":"21:00","kind":"idea","note":"Scalp massage, hair wash, steam. 60 min about 11,000 yen. Open to 23:00, private rooms. Book via Google or Instagram.","link":"https://www.google.com/maps/place/?q=place_id:ChIJdf6UuwuLGGARedICmyxbaUA","phone":"","cat":"Head spa","rating":4.9,"reviews":217,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 2-chōme−11−5 7F","hours":{"Mon":[[660,1380]],"Tue":[[660,1380]],"Wed":[[660,1380]],"Thu":[[660,1380]],"Fri":[[660,1380]],"Sat":[[660,1380]],"Sun":[[660,1380]]}},{"id":"carina","name":"CARINA GINZA","lat":35.6744857,"lng":139.7676581,"layer":"Lidia spa","day":"Mon","time":"10:00","kind":"idea","note":"Head spa with scalp analysis, 75 min. 5.0 on 200+ reviews. Slots go early in the month.","link":"https://www.google.com/maps/place/?q=place_id:ChIJD5yDd-SLGGARH5N6XSgOF1w","phone":"+81 3-6228-7705","cat":"Head spa","rating":5.0,"reviews":204,"address":"〒104-0061 Tokyo, Chuo City, Ginza, 1-chōme−6−6 GINZA ARROWS 8F","hours":{"Mon":[[720,1260]],"Tue":[[600,1140]],"Wed":[[720,1260]],"Thu":[[720,1260]],"Fri":[[720,1260]],"Sat":[[600,1140]],"Sun":[[600,1140]]}},{"id":"mandarin","name":"The Spa at Mandarin Oriental Tokyo","lat":35.6869285,"lng":139.7728354,"layer":"Lidia spa","day":"Sat","time":"14:00 to 16:30","kind":"idea","note":"Forbes five-star hotel spa, facials and massage, spa suites with views. 10 min walk to Ninja Tokyo.","link":"https://www.google.com/maps/place/?q=place_id:ChIJXRiSj9iLGGAR7ykLrJn1Hyc","phone":"+81 3-3270-8300","cat":"Hotel spa","rating":4.7,"reviews":29,"address":"2-chōme-1-1 Nihonbashimuromachi, Chuo City, Tokyo 103-0022 (37F)","hours":{"Mon":[[600,1260]],"Tue":[[600,1260]],"Wed":[[600,1260]],"Thu":[[600,1260]],"Fri":[[600,1320]],"Sat":[[600,1320]],"Sun":[[600,1320]]}},{"id":"aman","name":"Aman Tokyo Spa","lat":35.6853479,"lng":139.7653624,"layer":"Lidia spa","day":"Sun","time":"09:00 to 12:00","kind":"idea","note":"The splurge: facial or massage plus the bath over the city, roughly 280 USD for 60 min. Marunouchi Line to Shibuya after.","link":"https://www.google.com/maps/place/?q=place_id:ChIJnQ4gh_iLGGARIrphRhGwwhQ","phone":"+81 3-5224-3344","cat":"Hotel spa","rating":4.7,"reviews":43,"address":"The Otemachi Tower, 1-5-6 Otemachi, Chiyoda City, Tokyo 100-0004 (34F)","hours":{"Mon":[[390,1320]],"Tue":[[390,1320]],"Wed":[[390,1320]],"Thu":[[390,1320]],"Fri":[[390,1320]],"Sat":[[390,1320]],"Sun":[[390,1320]]}},{"id":"shiseido","name":"Shiseido The Store","lat":35.6687904,"lng":139.7620733,"layer":"Lidia spa","day":"Mon","time":"morning","kind":"idea","note":"Skin analysis and consultation, bottle engraving. 30 min add-on.","link":"https://www.google.com/maps/place/?q=place_id:ChIJmw5aheiLGGARFrO7AvwggR8","phone":"","cat":"Beauty","rating":4.1,"reviews":696,"address":"7-chōme-8-10 Ginza, Chuo City, Tokyo 104-0061","hours":{"Mon":[[600,1200]],"Tue":[[600,1200]],"Wed":[[600,1200]],"Thu":[[600,1200]],"Fri":[[600,1200]],"Sat":[[600,1200]],"Sun":[[600,1200]]}}];
+const HOTEL = {lat:35.6702818, lng:139.7697957};
+const DAYS = ["Fri","Sat","Sun","Mon"];
+const DAYNAMES = {Fri:"Friday", Sat:"Saturday", Sun:"Sunday", Mon:"Monday"};
+const WHO = [["P","Philipp"],["L","Lidia"],["K","Kids"]];
+const FLIGHT = {landMin:19*60, checkinMin:20*60+40, leaveHotelMin:15*60, departMin:18*60};
+const CATS = ["Breakfast","Sushi","Ramen","Wagyu","Izakaya","Street food","Dessert","Market","Museum","Shrine","Temple","Park","Garden","Viewpoint","Shopping","Shop","Arcade","Aquarium","Spa","Transport","Other"];
 
-// ---------- projection (equirectangular, hotel-centred)
-const H = PLACES.find(p=>p.id==="hotel");
-const KM_LAT = 111.2, KM_LNG = 111.2*Math.cos(H.lat*Math.PI/180);
-const W=700, HT=760, PX_PER_KM = 52, CX = 390, CY = 320;
-function xy(p){ return [CX + (p.lng-H.lng)*KM_LNG*PX_PER_KM, CY - (p.lat-H.lat)*KM_LAT*PX_PER_KM]; }
-const CONTEXT = [
-  ["Tokyo Station",35.6812,139.7671],["Shimbashi",35.6662,139.7583],["Shibuya",35.6580,139.7016],["Shinjuku",35.6896,139.7006],
-  ["Harajuku",35.6702,139.7027],["Asakusa",35.7119,139.7983],["Akihabara",35.6984,139.7731],["Odaiba",35.6300,139.7790],
-  ["Tsukiji",35.6654,139.7707],["Otemachi",35.6868,139.7636],["Tokyo Tower",35.6586,139.7454],["Toyosu",35.6550,139.7960]
-];
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad2 = n => String(n).padStart(2,"0");
+const fmt = m => { m=((m%1440)+1440)%1440; return pad2(Math.floor(m/60))+":"+pad2(m%60); };
+const toMin = s => { const m=String(s||"").match(/(\d{1,2}):(\d{2})/); return m ? (+m[1])*60+(+m[2]) : null; };
+const uid = (pre) => pre + "-" + Math.random().toString(36).slice(2,8);
 
-// ---------- helpers
-const byId = Object.fromEntries(PLACES.map(p=>[p.id,p]));
-function booked(p){ const b = picks[p.id]?.booked; return b===undefined ? p.kind==="plan" : !!b; }
-function state(p){ return booked(p) ? "plan" : (picks[p.id]?.state || ""); }
-function visible(){ const t=TABS.find(x=>x.id===tab); return PLACES.filter(p=>p.id!=="haneda"? t.filter(p): t.filter(p)); }
-function numbered(){ const v=visible(); v.forEach((p,i)=>p._n=i+1); return v; }
-function slotKey(p){ const tt=timeOf(p); const t=tt.match(/^\d\d:\d\d/); return t?t[0]:(tt||dayOf(p)||""); }
+// ============================================================ local storage (per device)
+const LS = {
+  get(k, d){ try{ const v=localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let store = LS.get("tokyo-trip-store-v2", null) || LS.get("tokyo-trip-picks-v1", {}) || {};   // id -> doc (synced)
+let outbox = LS.get("tokyo-trip-outbox-v1", {});                                                  // id -> doc waiting to be pushed
+let me = LS.get("tokyo-trip-me", "") || "";
+const saveStore = () => LS.set("tokyo-trip-store-v2", store);
+const saveOutbox = () => LS.set("tokyo-trip-outbox-v1", outbox);
 
-// ---------- render list
-function renderList(){
-  const v = numbered();
-  const groups = new Map();
-  for(const p of v){ const k = tab==="all" ? p.layer : slotKey(p); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(p); }
-  const list = document.getElementById("list"); list.innerHTML="";
-  for(const [k,items] of groups){
-    const slot = document.createElement("div"); slot.className="slot";
-    const t = document.createElement("div"); t.className="t"; t.textContent = k; slot.appendChild(t);
-    const rows = document.createElement("div"); rows.className="rows";
-    for(const p of items){
-      const st = state(p);
-      const row = document.createElement("div"); row.className = "row "+(st==="plan"?"plan":st?"st-"+st:"")+(selected===p.id?" sel":""); row.tabIndex=0; row.dataset.id=p.id;
-      row.innerHTML = `<div class="num">${p._n}</div>
-        <div class="body" style="min-width:0">
-          <div class="tag">${st==="plan"?"booked · ":"idea · "}${esc(p.cat)} · <button type="button" class="when" data-id="${p.id}" title="Change day or time">${whenText(p)}${picks[p.id]?.time||picks[p.id]?.day?" (edited)":""} ✎</button></div>
-          ${editing===p.id?`<div class="editwhen"><select class="eday" data-id="${p.id}" aria-label="Day">${["Fri","Sat","Sun","Mon"].map(d=>`<option value="${d}" ${dayOf(p).startsWith(d)?"selected":""}>${DAYNAMES[d]}</option>`).join("")}</select><input type="time" class="etime" data-id="${p.id}" aria-label="Time" value="${toMin(timeOf(p))!=null?fmt(toMin(timeOf(p))):""}"><button type="button" class="esave" data-id="${p.id}">Save</button><button type="button" class="ereset" data-id="${p.id}" ${picks[p.id]?.time||picks[p.id]?.day?"":"disabled"}>Reset</button><button type="button" class="ecancel">Cancel</button></div>`:""}
-          <p class="name">${esc(p.name)}${p.rating?` <span class="stars" title="Google rating, ${p.reviews.toLocaleString()} reviews">★ ${p.rating.toFixed(1)}</span>`:""}</p>
-          <p class="note">${esc(p.note)}</p>
-          <div class="meta"><a href="${esc(p.link)}" target="_blank" rel="noopener">Open in Google Maps</a>${p.phone?`<span class="phone">${esc(p.phone)} <button class="copy" data-copy="${esc(p.phone)}" type="button">copy</button></span>`:""}</div>
-        </div>
-        <div class="picks">${st==="plan"?"":["yes","maybe","no"].map(s=>`<button type="button" class="pick ${picks[p.id]?.state===s?"on":""}" data-s="${s}" data-id="${p.id}" aria-label="${s}" ${canWrite===false?"disabled":""}>${s==="yes"?"✓":s==="maybe"?"?":"✕"}</button>`).join("")}${p.layer==="Hotel & transport"?"":`<button type="button" class="book ${st==="plan"?"on":""}" data-id="${p.id}" aria-pressed="${st==="plan"}" ${canWrite===false?"disabled":""}>${st==="plan"?"Booked":"Mark booked"}</button>`}</div>`;
-      rows.appendChild(row);
-    }
-    slot.appendChild(rows); list.appendChild(slot);
-  }
-  if(!v.length) list.innerHTML = '<p class="empty">Nothing in this view.</p>';
+// ============================================================ time in Tokyo (with an optional simulated clock for testing: #t=2026-11-14T14:30)
+let SIM = null;
+(function(){ const m=location.hash.match(/t=(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/) || location.search.match(/t=(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/); if(m) SIM={date:m[1], min:(+m[2])*60+(+m[3])}; })();
+const TOKYO_FMT = new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Tokyo",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",weekday:"short"});
+function tokyoNow(){
+  if(SIM) return {date:SIM.date, min:SIM.min, weekday:weekdayOf(SIM.date)};
+  const parts={}; for(const p of TOKYO_FMT.formatToParts(new Date())) parts[p.type]=p.value;
+  return {date:`${parts.year}-${parts.month}-${parts.day}`, min:(+parts.hour)*60+(+parts.minute), weekday:parts.weekday};
 }
-function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function weekdayOf(dateStr){ return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(dateStr+"T12:00:00Z").getUTCDay()]; }
+function addDays(dateStr, n){ const d=new Date(dateStr+"T12:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function fridayDate(){ return (store._settings && store._settings.fridayDate) || ""; }
+function tripDates(){ const f=fridayDate(); if(!f) return null; return {Fri:f, Sat:addDays(f,1), Sun:addDays(f,2), Mon:addDays(f,3)}; }
+function todayKey(){ const td=tripDates(); if(!td) return null; const n=tokyoNow(); for(const d of DAYS) if(td[d]===n.date) return d; return null; }
+function daysUntilTrip(){ const f=fridayDate(); if(!f) return null; const n=tokyoNow(); return Math.round((Date.parse(f+"T00:00:00Z")-Date.parse(n.date+"T00:00:00Z"))/864e5); }
 
-// ---------- render map (Leaflet + OpenStreetMap)
-let LMAP=null, LAYER=null, MARKERS={};
-function ensureMap(){
-  if(LMAP || typeof L==="undefined") return;
-  LMAP = L.map("map",{scrollWheelZoom:false, zoomControl:true}).setView([H.lat,H.lng],13);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(LMAP);
-  LAYER = L.layerGroup().addTo(LMAP);
-  L.marker([H.lat,H.lng],{icon:L.divIcon({className:"",html:'<div class="mk hotel" title="Hotel">H</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:1000}).addTo(LMAP).bindPopup('<p class="name">ENT TERRACE GINZA PREMIUM</p><p class="note">Your hotel. Ginza 3-14-6, next to Kabuki-za.</p>');
+// ============================================================ items (base places + custom items + overrides)
+function docOf(id){ return store[id] || {}; }
+function places(){
+  const out = BASE.map(p=>p);
+  for(const id in store){ const d=store[id]; if(d && d.custom && !d.deleted && d.name) out.push({id, name:d.name, lat:d.lat??null, lng:d.lng??null, layer:"Custom", day:d.day||"Sat", time:d.time||"", kind:"idea", note:d.note||"", link:d.link||"", phone:d.phone||"", cat:d.cat||"Other", rating:null, reviews:null, address:d.address||"", hours:null, custom:true}); }
+  return out;
 }
-function renderMap(){
-  ensureMap(); if(!LMAP) return;
-  const v = numbered(); LAYER.clearLayers(); MARKERS={};
-  const pts=[];
-  for(const p of v){ if(p.id==="hotel"||p.id==="haneda") continue; const st=state(p);
-    const icon=L.divIcon({className:"",html:`<div class="mk ${st==="plan"?"plan":st?"st-"+st:""}${selected===p.id?" sel":""}">${p._n}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
-    const m=L.marker([p.lat,p.lng],{icon, zIndexOffset: selected===p.id?900:(st==="plan"?500:0)}).addTo(LAYER);
-    m.bindPopup(`<div class="tag">${esc(p.cat)} · ${whenText(p)}</div><p class="name">${esc(p.name)}${p.rating?` <span class="stars">★ ${p.rating.toFixed(1)}</span>`:""}</p><p class="note">${esc(p.note)}</p><div class="meta"><a href="${esc(p.link)}" target="_blank" rel="noopener">Open in Google Maps</a></div>`);
-    m.on("click",()=>{ selected=p.id; renderList(); renderDetail(); renderTimeline(); refreshIcons(); });
-    MARKERS[p.id]=m; pts.push([p.lat,p.lng]);
-  }
-  if(pts.length && !LMAP._fitDone){ LMAP.fitBounds(pts,{padding:[24,24]}); LMAP._fitDone=tab; }
-  else if(pts.length && LMAP._fitDone!==tab){ LMAP.fitBounds(pts,{padding:[24,24]}); LMAP._fitDone=tab; }
-}
-function refreshIcons(){ renderMap(); }
-function renderDetail(){
-  const d = document.getElementById("detail");
-  if(!selected || !byId[selected]){ d.innerHTML='<span class="empty">Nothing selected yet.</span>'; return; }
-  const p = byId[selected];
-  d.innerHTML = `<div class="tag">${esc(p.cat)} · ${whenText(p)}</div><p class="name">${esc(p.name)}${p.rating?` <span class="stars">★ ${p.rating.toFixed(1)} <small>(${p.reviews.toLocaleString()})</small></span>`:""}</p><p class="note">${esc(p.note)}</p>
-    <div class="meta"><a href="${esc(p.link)}" target="_blank" rel="noopener">Open in Google Maps</a>${p.phone?`<span class="phone">${esc(p.phone)} <button class="copy" data-copy="${esc(p.phone)}" type="button">copy</button></span>`:""}</div>`;
-}
-function renderTally(){
-  const t = document.getElementById("tally");
-  const ideasList = PLACES.filter(p=>!booked(p) && p.layer!=="Hotel & transport");
-  const bookedN = PLACES.filter(p=>booked(p) && p.layer!=="Hotel & transport").length;
-  const yes = ideasList.filter(p=>picks[p.id]?.state==="yes").length;
-  const maybe = ideasList.filter(p=>picks[p.id]?.state==="maybe").length;
-  const no = ideasList.filter(p=>picks[p.id]?.state==="no").length;
-  t.innerHTML = `<span class="pill" style="color:var(--ink);background:var(--ink-soft);border-color:transparent"><b>${bookedN}</b> booked</span><span class="pill yes"><b>${yes}</b> yes</span><span class="pill maybe"><b>${maybe}</b> maybe</span><span class="pill"><b>${ideasList.length-yes-maybe-no}</b> undecided</span><span class="pill sync" id="syncpill">${syncLabel()}</span>`;
-}
-function renderTabs(){
-  const el = document.getElementById("tabs"); el.innerHTML="";
-  for(const t of TABS){ const b=document.createElement("button"); b.className="tab"; b.role="tab"; b.type="button"; b.textContent=t.label; b.setAttribute("aria-selected", tab===t.id); b.onclick=()=>{ tab=t.id; selected=null; try{history.replaceState(null,"","#"+t.id)}catch(e){} renderAll(); }; el.appendChild(b); }
-}
-// ---------- confirmed timeline
-const DAYS=["Fri","Sat","Sun","Mon"], DAYNAMES={Fri:"Friday",Sat:"Saturday",Sun:"Sunday",Mon:"Monday"};
-const AIR={lat:35.5454613,lng:139.7687222};
-const ANCHORS=[
-  {id:"a-land",name:"Land at Haneda, Terminal 3",day:"Fri",t:"19:00",lat:AIR.lat,lng:AIR.lng,note:"Allow about 60 min for immigration and bags before the train"},
-  {id:"a-checkin",name:"Hotel check-in, drop bags",day:"Fri",t:"20:40",lat:H.lat,lng:H.lng,est:true,note:"19:00 landing + 60 min + 40 min train. Check-in is open until 01:00"},
-  {id:"a-leave",name:"Leave hotel for Haneda",day:"Mon",t:"15:00",lat:H.lat,lng:H.lng,note:"Pick up bags first; confirm storage with the hotel"},
-  {id:"a-fly",name:"Flight to SF departs",day:"Mon",t:"18:00",lat:AIR.lat,lng:AIR.lng},
-];
-function toMin(t){ const m=String(t||"").match(/(\d\d):(\d\d)/); return m? +m[1]*60 + +m[2] : null; }
-function fmt(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
-function fmtDur(m){ m=Math.round(m); const h=Math.floor(m/60), r=m%60; return h? (r? `${h} h ${r} min` : `${h} h`) : `${r} min`; }
-function kmBetween(a,b){ const R=6371, toR=x=>x*Math.PI/180; const dLat=toR(b.lat-a.lat), dLng=toR(b.lng-a.lng); const h=Math.sin(dLat/2)**2+Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
-function travel(a,b){
-  const d=kmBetween(a,b); const isAir=x=>kmBetween(x,AIR)<1;
-  if(isAir(a)||isAir(b)) return {min:40, mode:"Asakusa Line through-train"};
-  if(d<0.15) return {min:0, mode:"same place"};
-  if(d<1.3) return {min:Math.ceil(d*1000/75), mode:"walk"};
-  return {min:Math.round(12+d*3), mode:"train"};
-}
-function renderTimeline(){
-  const el=document.getElementById("timeline"); const evs=[];
-  for(const p of PLACES){ if(p.layer==="Hotel & transport"||!booked(p)) continue; const day=DAYS.find(d=>dayOf(p).includes(d)); if(!day) continue; evs.push({id:p.id,name:p.name,day,t:toMin(timeOf(p)),lat:p.lat,lng:p.lng,cat:p.cat}); }
-  for(const a of ANCHORS) evs.push(Object.assign({},a,{t:toMin(a.t),anchor:true}));
-  let html="";
-  for(const d of DAYS){
-    const list=evs.filter(e=>e.day===d).sort((a,b)=>(a.t??9999)-(b.t??9999));
-    if(!list.length) continue;
-    html+=`<div class="tlday">${DAYNAMES[d]}</div>`;
-    list.forEach((e,i)=>{
-      html+=`<div class="tlev ${e.anchor?"anchor":""}${selected===e.id?" sel":""}" data-id="${e.id}" tabindex="0"><span class="tlt">${e.t!=null?fmt(e.t):"TBD"}${e.est?"<small>est.</small>":""}</span><span class="tln">${esc(e.name)}${e.cat?` <span class="tag">${esc(e.cat)}</span>`:""}${e.note?`<small>${esc(e.note)}</small>`:""}</span></div>`;
-      const n=list[i+1];
-      if(n && e.t!=null && n.t!=null){
-        const tr=travel(e,n), gap=n.t-e.t, slack=gap-tr.min;
-        const cls = slack<30 ? "tight" : slack<60 ? "ok" : "";
-        const onsite = tr.min===0 ? `${fmtDur(gap)} here` : (slack<0 ? `short by ${fmtDur(-slack)}` : `${fmtDur(slack)} on site, then leave by ${fmt(n.t-tr.min)}`);
-        html+=`<div class="tlgo ${cls}"><span>${tr.min? `<b>${tr.mode}</b> ~${tr.min} min` : tr.mode}</span><span>${onsite}</span></div>`;
-      }
-    });
-  }
-  el.innerHTML = html || '<p class="empty">Nothing booked yet. Use Mark booked on any idea.</p>';
-}
-function renderAll(){ renderTabs(); renderList(); renderMap(); renderDetail(); renderTally(); renderTimeline(); }
+let PLACES = places(); let byId = {};
+function reindex(){ PLACES = places(); byId = {}; PLACES.forEach(p=>byId[p.id]=p); }
+reindex();
+function dayOf(p){ return docOf(p.id).day || p.day || ""; }
+function timeOf(p){ return docOf(p.id).time || p.time || ""; }
+function stateOf(p){ return docOf(p.id).state || ""; }
+function bookedOf(p){ const b=docOf(p.id).booked; return b===true || (b!==false && p.kind==="plan"); }
+function doneOf(p){ return docOf(p.id).done || ""; }   // "done" | "skip" | ""
+function whoOf(p){ return docOf(p.id).who || (p.layer==="Lidia spa" ? "L" : ""); }
+function whenText(p){ const d=dayOf(p), t=timeOf(p); return esc(d) + (t ? " · " + esc(t) : ""); }
+function isEdited(p){ const d=docOf(p.id); return !!(d.time||d.day); }
+function confirmedish(p){ return bookedOf(p) || stateOf(p)==="yes"; }
 
-// ---------- events
-document.addEventListener("click", async e=>{
-  const c = e.target.closest(".copy"); if(c){ e.stopPropagation(); try{ await navigator.clipboard.writeText(c.dataset.copy); c.textContent="copied"; setTimeout(()=>c.textContent="copy",1200);}catch(err){ const r=document.createRange(); r.selectNodeContents(c.previousSibling||c.parentNode); getSelection().removeAllRanges(); getSelection().addRange(r);} return; }
-  const pk = e.target.closest(".pick"); if(pk){ e.stopPropagation(); await setPick(pk.dataset.id, pk.dataset.s); return; }
-  const bk = e.target.closest(".book"); if(bk){ e.stopPropagation(); await setBooked(bk.dataset.id); return; }
-  if(e.target.closest(".when,.editwhen")) return;
-  const r = e.target.closest(".row,.pin,.tlev"); if(r){ selected = r.dataset.id; renderList(); renderMap(); renderDetail(); renderTimeline(); const mk=MARKERS[selected]; if(mk && LMAP){ LMAP.panTo(mk.getLatLng()); mk.openPopup(); } if((e.target.closest(".row")||e.target.closest(".tlev")) && isMobile()) setView("map"); }
-});
-function setView(v){ const w=document.getElementById("wrap"); w.dataset.view=v; document.querySelectorAll("#views button").forEach(b=>b.setAttribute("aria-selected", b.dataset.v===v)); if(v==="map" && LMAP){ setTimeout(()=>{ LMAP.invalidateSize(); const mk=MARKERS[selected]; if(mk){ LMAP.panTo(mk.getLatLng()); mk.openPopup(); } else LMAP._fitDone=null, renderMap(); }, 50); } }
-function isMobile(){ return window.matchMedia("(max-width: 860px)").matches; }
-document.getElementById("views").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b) setView(b.dataset.v); });
-document.addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ") && e.target.matches(".row,.pin,.tlev")){ e.preventDefault(); e.target.click(); } });
-window.addEventListener("hashchange", ()=>{ const h=location.hash.replace("#",""); if(TABS.some(t=>t.id===h)){ tab=h; renderAll(); } });
+// ============================================================ hours
+// p.hours = {Mon:[[start,end],...],...}; end may exceed 1440 (past midnight). [] = closed that day. null = unknown.
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function weekdayForTripDay(dayKey){ const td=tripDates(); return td ? weekdayOf(td[dayKey]) : dayKey; }  // trip days are literally Fri..Mon
+function intervalsOn(p, wd){
+  if(!p.hours) return null;
+  const prev = WD[(WD.indexOf(wd)+6)%7];
+  const own = p.hours[wd]; const spill = (p.hours[prev]||[]).filter(([s,e])=>e>1440).map(([s,e])=>[0,e-1440]);
+  if(own===undefined && !spill.length) return null;
+  return [...spill, ...(own||[])];
+}
+// status at minute m on weekday wd: {known, open, until, opensAt, closedAllDay}
+function openStatus(p, wd, m){
+  const iv = intervalsOn(p, wd);
+  if(iv===null) return {known:false};
+  if(!iv.length) return {known:true, open:false, closedAllDay:true};
+  for(const [s,e] of iv) if(m>=s && m<e) return {known:true, open:true, until:e};
+  const next = iv.filter(([s])=>s>m).sort((a,b)=>a[0]-b[0])[0];
+  return {known:true, open:false, opensAt: next ? next[0] : null, closedAllDay:false};
+}
+function hoursLine(p, dayKey, m){
+  if(!p.hours || !dayKey || !DAYS.includes(dayKey)) return "";
+  const st = openStatus(p, dayKey, m==null ? 12*60 : m);
+  if(!st.known) return "";
+  if(st.closedAllDay) return `<div class="hours warn">Closed on ${DAYNAMES[dayKey]}</div>`;
+  if(m==null){ const iv=intervalsOn(p,dayKey); return `<div class="hours">${DAYNAMES[dayKey]}: ${iv.map(([s,e])=>fmt(s)+"–"+fmt(e)).join(", ")}</div>`; }
+  if(st.open) return `<div class="hours open">Open until ${fmt(st.until)}${st.until-m<=45?" · closes soon":""}</div>`;
+  if(st.opensAt!=null) return `<div class="hours warn">Closed at ${fmt(m)} · opens ${fmt(st.opensAt)}</div>`;
+  return `<div class="hours warn">Closed by ${fmt(m)} on ${DAYNAMES[dayKey]}</div>`;
+}
+// warning when the planned day/time falls outside opening hours
+function planConflict(p){
+  const d = DAYS.find(x=>dayOf(p).startsWith(x)); const m = toMin(timeOf(p));
+  if(!d || !p.hours) return "";
+  const st = openStatus(p, d, m==null ? 12*60 : m);
+  if(!st.known) return "";
+  if(st.closedAllDay) return `Closed on ${DAYNAMES[d]}`;
+  if(m!=null && !st.open) return st.opensAt!=null ? `Closed at ${fmt(m)} on ${DAYNAMES[d]} (opens ${fmt(st.opensAt)})` : `Closed by ${fmt(m)} on ${DAYNAMES[d]}`;
+  if(m!=null && st.open && st.until-m<40) return `Closes ${fmt(st.until)}, only ${st.until-m} min after ${fmt(m)}`;
+  return "";
+}
 
-// ---------- picks (saved in this browser)
-const KEY="tokyo-trip-picks-v1";
-function loadPicks(){ try{ return JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){ return {}; } }
-function savePicks(){ try{ localStorage.setItem(KEY, JSON.stringify(picks)); }catch(e){} }
-// A cleared pick is kept as a tombstone {at} so that timestamps decide every merge.
-async function writeDoc(id, body){ picks[id]=body; savePicks(); renderAll(); pushWrite({id, doc: body}); }
+// ============================================================ distance & travel heuristic
+function km(a, b){ if(a.lat==null||b.lat==null) return null; const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180, la1=a.lat*Math.PI/180, la2=b.lat*Math.PI/180; const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function travel(a, b){
+  const d = km(a,b); if(d==null) return null;
+  if(a.id==="haneda" || b.id==="haneda") return {min:40, mode:"train", km:d};
+  if(d < 1.3) return {min:Math.max(3, Math.round(d*1000/75)), mode:"walk", km:d};
+  return {min:Math.round(12 + 3*d), mode:"train", km:d};
+}
+const travelText = t => t ? `~${t.min} min ${t.mode==="walk"?"walk":"by train/taxi"}` : "";
+function dirUrl(p){ return `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=transit`; }
+function appleUrl(p){ return `https://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=r`; }
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+
+// ============================================================ sync (shared store through the Apps Script web app)
 function nextDoc(id, patch){
-  const cur = Object.assign({}, picks[id]||{}, patch);
-  if(cur.state===null) delete cur.state;
-  if(cur.booked===null) delete cur.booked;
-  if(cur.time===null||cur.time==="") delete cur.time;
-  if(cur.day===null||cur.day==="") delete cur.day;
-  cur.at = new Date().toISOString();
+  const cur = Object.assign({}, docOf(id));
+  for(const k in patch){ const v=patch[k]; if(v===null || v==="" || v===undefined) delete cur[k]; else cur[k]=v; }
+  cur.at = new Date().toISOString(); cur.by = me;
   return cur;
 }
-// ---------- shared store: Google Apps Script web app bound to the Japan Trip sheet
-const API = "https://script.google.com/macros/s/AKfycbzZ5b9Sin4Z2w5vYiQzKvRGQ7pkhDl1v45x8RKS93pube2-lxR4-UPAw0syMtcvkDfU/exec";
-let syncState = API ? "connecting" : "local", lastSync = null, inflight = 0;
-function newer(a,b){ return String(a?.at||"") > String(b?.at||""); }
-function mergeIncoming(incoming){ let n=0; for(const [id,doc] of Object.entries(incoming||{})){ if(!byId[id]||!doc||typeof doc!=="object") continue; if(!picks[id] || newer(doc,picks[id])){ picks[id]=doc; n++; } } return n; }
-async function pullPicks(){
-  if(!API || document.visibilityState==="hidden") return;
-  try{ const r=await fetch(API+(API.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"}); const j=await r.json();
-    if(j && j.ok){ const n=mergeIncoming(j.picks); if(n){ savePicks(); renderAll(); } lastSync=new Date(); syncState="ok"; } else syncState="error";
-  }catch(e){ syncState="error"; }
-  renderTally();
+function isEmptyDoc(d){ return !Object.keys(d).some(k=>k!=="at" && k!=="by"); }
+async function writeDoc(id, doc){
+  store[id] = doc; saveStore(); outbox[id] = doc; saveOutbox();
+  reindex(); renderAll();
+  flush();
 }
-async function pushWrite(w){
-  if(!API) return; inflight++; renderTally();
-  try{ const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({writes:[w]})}); const j=await r.json();
-    if(j && j.ok){ if(mergeIncoming(j.picks)){ savePicks(); renderAll(); } lastSync=new Date(); syncState="ok"; } else syncState="error";
-  }catch(e){ syncState="error"; }
-  inflight--; renderTally();
+function mergeIncoming(remote){
+  let changed=false;
+  for(const id in remote){ const r=remote[id]; if(!r) continue; const l=store[id]; if(!l || String(r.at||"")>String(l.at||"")){ store[id]=r; changed=true; } }
+  if(changed){ saveStore(); reindex(); }
+  return changed;
 }
-function syncLabel(){
-  if(!API) return "Saved in this browser";
-  if(inflight) return "Saving…";
-  if(syncState==="connecting") return "Connecting to the shared sheet…";
-  if(syncState==="error") return "Can't reach the shared sheet; saved here, will retry";
-  return "Shared via Google Sheet · synced "+(lastSync?lastSync.toTimeString().slice(0,5):"");
+let syncState = {status:"idle", label:""};
+function setSync(status, label){ syncState={status,label}; const d=document.getElementById("syncdot"), l=document.getElementById("synclabel"); if(d) d.className="dot "+(status==="ok"?"ok":status==="err"?"err":status==="busy"?"busy":""); if(l) l.textContent=label; }
+let flushing=false;
+async function flush(){
+  if(!API){ setSync("", "Saved on this device only (no shared sync configured)"); return; }
+  const ids = Object.keys(outbox);
+  if(!navigator.onLine){ setSync("err", ids.length ? `Offline · ${ids.length} change${ids.length>1?"s":""} will sync later` : "Offline · showing saved data"); return; }
+  if(flushing) return; flushing=true;
+  try{
+    if(ids.length){
+      setSync("busy", "Saving…");
+      const writes = ids.map(id=>({id, doc:outbox[id]}));
+      const res = await fetch(API, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({writes}), redirect:"follow"});
+      const j = await res.json(); if(!j.ok) throw new Error(j.error||"server error");
+      for(const w of writes) if(outbox[w.id] && outbox[w.id].at===w.doc.at) delete outbox[w.id];
+      saveOutbox(); if(mergeIncoming(j.picks||{})) renderAll();
+    } else {
+      const res = await fetch(API + (API.includes("?")?"&":"?") + "ts=" + Date.now(), {redirect:"follow", cache:"no-store"});
+      const j = await res.json(); if(!j.ok) throw new Error(j.error||"server error");
+      if(mergeIncoming(j.picks||{})) renderAll();
+    }
+    lastSyncAt = Date.now(); setSync("ok", "Synced with the family " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}));
+  }catch(e){
+    const n = Object.keys(outbox).length;
+    setSync("err", n ? `Couldn't reach the shared list · ${n} change${n>1?"s":""} queued` : "Couldn't reach the shared list · showing saved data");
+  }finally{ flushing=false; if(Object.keys(outbox).length && navigator.onLine) setTimeout(flush, 4000); }
 }
-if(API){ setInterval(pullPicks, 15000); document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") pullPicks(); }); }
-async function setPick(id, s){ const cur = picks[id]?.state; await writeDoc(id, nextDoc(id, {state: cur===s ? null : s})); }
-async function setBooked(id){
-  const p = byId[id]; const now = booked(p);
-  const val = (!now === (p.kind==="plan")) ? null : !now;
-  await writeDoc(id, nextDoc(id, {booked: val, state: !now ? null : (picks[id]?.state ?? null)}));
-}
-let me = "";
-let editing = null;
-document.addEventListener("click", async e=>{
-  const w=e.target.closest(".when"); if(w){ e.stopPropagation(); editing = editing===w.dataset.id ? null : w.dataset.id; renderList(); return; }
-  if(e.target.closest(".editwhen") && !e.target.closest("button")){ e.stopPropagation(); return; }
-  const sv=e.target.closest(".esave"); if(sv){ e.stopPropagation(); const id=sv.dataset.id; const p=byId[id];
-    const day=document.querySelector(`.eday[data-id="${id}"]`).value, time=document.querySelector(`.etime[data-id="${id}"]`).value;
-    const origDay = p.day.split("/")[0];
-    const origTime = toMin(p.time)!=null ? fmt(toMin(p.time)) : "";
-    const patch = { day: (day && day!==origDay) ? day : null, time: (time && time!==origTime) ? time : null };
-    editing=null; await writeDoc(id, nextDoc(id, patch)); return; }
-  const rs=e.target.closest(".ereset"); if(rs){ e.stopPropagation(); editing=null; await writeDoc(rs.dataset.id, nextDoc(rs.dataset.id, {time:null, day:null})); return; }
-  const cc=e.target.closest(".ecancel"); if(cc){ e.stopPropagation(); editing=null; renderList(); return; }
-});
-// ---------- share link: picks travel in the URL hash, merged by newest timestamp per item
+let lastSyncAt = 0;
+window.addEventListener("online", ()=>flush());
+window.addEventListener("offline", ()=>setSync("err","Offline · showing saved data"));
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) flush(); });
+setInterval(()=>{ if(!document.hidden) flush(); }, 20000);
+
+// export / import backup through the URL hash (#p=...) — a fallback when the shared sync is not reachable
 function b64e(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
 function b64d(s){ s=s.replace(/-/g,"+").replace(/_/g,"/"); while(s.length%4) s+="="; return decodeURIComponent(escape(atob(s))); }
-function shareUrl(){ const u=new URL(location.href); u.hash = "p=" + b64e(JSON.stringify(picks)); return u.toString(); }
-function mergeFromHash(){
-  const m=location.hash.match(/[#&]p=([A-Za-z0-9_-]+)/); if(!m) return 0;
-  let incoming={}; try{ incoming=JSON.parse(b64d(m[1])); }catch(e){ return 0; }
-  let n=0;
-  for(const [id,doc] of Object.entries(incoming)){ if(!byId[id]||typeof doc!=="object") continue; const cur=picks[id]; if(!cur || String(doc.at||"") > String(cur.at||"")){ picks[id]=doc; n++; } }
-  if(n) savePicks();
-  try{ history.replaceState(null,"",location.pathname+location.search+(tab!=="all"?"#"+tab:"")); }catch(e){}
-  return n;
-}
-function toast(msg){ let t=document.getElementById("toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t);} t.textContent=msg; t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true,2600); }
-document.addEventListener("click", async e=>{
-  const s=e.target.closest("#sharebtn"); if(!s) return;
-  const url=shareUrl();
-  try{ await navigator.clipboard.writeText(url); toast("Share link copied. Send it to merge your picks into another phone."); }
-  catch(err){ const box=document.getElementById("sharebox"); box.hidden=false; box.value=url; box.select(); }
-});
-picks = loadPicks(); db = undefined; canWrite = true;
-const merged = mergeFromHash();
-renderAll();
-if(merged){ toast(`Merged ${merged} pick${merged===1?"":"s"} from the link.`); if(API){ const w=Object.entries(picks).map(([id,doc])=>({id,doc})); fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({writes:w})}).catch(()=>{}); } }
-pullPicks();
-</script>
+function exportUrl(){ const u=new URL(location.href); u.hash="p="+b64e(JSON.stringify(store)); return u.toString(); }
+(function importFromHash(){ const m=location.hash.match(/p=([A-Za-z0-9_-]+)/); if(!m) return; try{ const inc=JSON.parse(b64d(m[1])); if(mergeIncoming(inc)){ for(const id in inc) outbox[id]=store[id]; saveOutbox(); } history.replaceState(null,"",location.pathname+location.search); }catch(e){} })();
 
+// ============================================================ cached external data (weather, FX)
+async function cached(key, maxAgeMs, loader){
+  const c = LS.get(key, null);
+  if(c && Date.now()-c.t < maxAgeMs) return c.v;
+  try{ const v = await loader(); LS.set(key, {t:Date.now(), v}); return v; }catch(e){ return c ? c.v : null; }
+}
+async function loadWeather(){
+  const td = tripDates(); const n = tokyoNow();
+  const start = td ? td.Fri : n.date, end = td ? td.Mon : addDays(n.date, 3);
+  const ahead = Math.round((Date.parse(start)-Date.parse(n.date))/864e5);
+  if(ahead > 15 || ahead < -4) return {tooFar:true, start};
+  return cached("tokyo-trip-wx-"+start, 3*3600e3, async()=>{
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=35.67&longitude=139.77&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo&start_date=${start}&end_date=${end}`;
+    const r = await fetch(u); const j = await r.json(); if(!j.daily) throw new Error("no data"); return j.daily;
+  });
+}
+const WXCODE = c => c===0?"☀️ Clear":c<=2?"🌤 Mostly sunny":c===3?"☁️ Cloudy":c<=49?"🌫 Fog":c<=59?"🌦 Drizzle":c<=69?"🌧 Rain":c<=79?"🌨 Snow":c<=84?"🌧 Showers":"⛈ Storms";
+async function loadFx(){
+  return cached("tokyo-trip-fx", 12*3600e3, async()=>{ const r=await fetch("https://api.frankfurter.app/latest?from=USD&to=JPY"); const j=await r.json(); if(!j.rates||!j.rates.JPY) throw new Error("no rate"); return {rate:j.rates.JPY, date:j.date}; });
+}
+function fxRate(){ const manual = LS.get("tokyo-trip-fx-manual", null); if(manual) return {rate:manual, src:"your rate"}; const c=LS.get("tokyo-trip-fx", null); if(c&&c.v) return {rate:c.v.rate, src:"ECB "+c.v.date}; return {rate:150, src:"fallback estimate"}; }
+
+// ============================================================ UI state
+let view = LS.get("tokyo-trip-view", null);
+let tab = null;                // session only: each load opens on today's day
+let whoFilter = "";            // "", "P", "L", "K"
+let onlyPicks = false;
+let selected = null;
+let editing = null;
+let LMAP = null, MARKERS = {}, MEMARK = null, myPos = null, watchId = null;
+
+function setView(v){
+  view = v; LS.set("tokyo-trip-view", v);
+  document.querySelectorAll("section.view").forEach(s=>s.classList.toggle("on", s.id==="view-"+v));
+  document.querySelectorAll(".nav button").forEach(b=>b.setAttribute("aria-selected", b.dataset.view===v));
+  document.getElementById("fab").style.display = v==="plan" ? "block" : "none";
+  if(v==="map"){ ensureMap(); setTimeout(()=>{ LMAP.invalidateSize(); const mk=MARKERS[selected]; if(mk){ LMAP.panTo(mk.getLatLng()); mk.openPopup(); } }, 60); }
+  if(v==="now") startWatch(); else stopWatch();
+  window.scrollTo({top:0});
+}
+function setTab(t){ tab=t; renderPlan(); }
+function curTab(){ return tab || (todayKey() ? todayKey().toLowerCase() : "fri"); }
+
+// ============================================================ render everything
+function renderAll(){ renderClock(); renderNow(); renderPlan(); renderMap(); renderDetail(); renderEss(); }
+
+function renderClock(){
+  const n = tokyoNow(); const el = document.getElementById("clock");
+  const tk = todayKey(); const du = daysUntilTrip();
+  let line2 = tk ? `<b>${DAYNAMES[tk]} of the trip</b>` : du==null ? "set trip dates in Essentials" : du>0 ? `trip in <b>${du}</b> day${du===1?"":"s"}` : "after the trip";
+  el.innerHTML = `Tokyo <b>${fmt(n.min)}</b> · ${esc(n.weekday)}${SIM?" (sim)":""}<br><span>${line2}</span>`;
+}
+
+// ---------- shared row markup
+function rowHtml(p, num, opts={}){
+  const st = stateOf(p), booked = bookedOf(p), done = doneOf(p);
+  const d = DAYS.find(x=>dayOf(p).startsWith(x)); const tk = todayKey(); const n = tokyoNow();
+  const conflict = planConflict(p);
+  const liveHours = (tk && d===tk) ? hoursLine(p, tk, n.min) : hoursLine(p, d, null);
+  const who = whoOf(p);
+  const whoTxt = who ? who.split(",").map(w=>(WHO.find(x=>x[0]===w)||[])[1]).filter(Boolean).join(" + ") : "";
+  const cls = ["row", p.kind==="plan"||booked ? "plan" : "", st ? "st-"+st : "", selected===p.id ? "sel" : "", done==="done" ? "done" : done==="skip" ? "skip" : ""].filter(Boolean).join(" ");
+  return `<article class="${cls}" data-id="${p.id}" tabindex="0" aria-label="${esc(p.name)}">
+    <div class="num">${done==="done"?"✓":num}</div>
+    <div class="body">
+      <div class="tag">${booked?"booked · ":"idea · "}${esc(p.cat)}${p.rating?`<span class="stars">★ ${p.rating}</span>`:""} · <button type="button" class="when" data-id="${p.id}" title="Edit day, time, note, who">${whenText(p)}${isEdited(p)?" (edited)":""}${whoTxt?" · "+esc(whoTxt):""} ✎</button></div>
+      <p class="name">${esc(p.name)}${p.custom?' <span class="pill ink" style="font-size:11px;padding:1px 7px">yours</span>':""}</p>
+      ${p.note?`<p class="note">${esc(p.note)}</p>`:""}
+      ${docOf(p.id).note?`<p class="usernote">📝 ${esc(docOf(p.id).note)}</p>`:""}
+      ${conflict?`<div class="hours warn">⚠ ${esc(conflict)}</div>`:liveHours}
+      ${editing===p.id ? editorHtml(p) : ""}
+      <div class="meta">
+        ${p.lat!=null?`<a href="${dirUrl(p)}" target="_blank" rel="noopener">Directions</a>`:""}
+        ${p.lat!=null&&IOS?`<a href="${appleUrl(p)}" target="_blank" rel="noopener">Apple Maps</a>`:""}
+        ${p.link?`<a href="${esc(p.link)}" target="_blank" rel="noopener">Google Maps</a>`:""}
+        ${p.phone?`<span class="phone"><a href="tel:${esc(p.phone.replace(/[^+\d]/g,""))}">${esc(p.phone)}</a></span>`:""}
+        ${p.address?`<button type="button" class="copy" data-copy="${esc(p.name+"\n"+p.address)}" title="Copy name and address for a taxi">Copy address</button>`:""}
+        ${p.address?`<button type="button" class="copy" data-driver="${p.id}">Show to driver</button>`:""}
+      </div>
+    </div>
+    <div class="acts">
+      <button type="button" class="pick ${st==="yes"?"on":""}" data-s="yes" data-id="${p.id}" aria-label="Yes" aria-pressed="${st==="yes"}">✓</button>
+      <button type="button" class="pick ${st==="maybe"?"on":""}" data-s="maybe" data-id="${p.id}" aria-label="Maybe" aria-pressed="${st==="maybe"}">?</button>
+      <button type="button" class="pick ${st==="no"?"on":""}" data-s="no" data-id="${p.id}" aria-label="No" aria-pressed="${st==="no"}">✕</button>
+      <button type="button" class="book ${booked?"on":""}" data-id="${p.id}" aria-pressed="${booked}">${booked?"Booked":"Mark booked"}</button>
+      <button type="button" class="doneb ${done==="done"?"on":done==="skip"?"skipon":""}" data-id="${p.id}" title="Done / skipped">${done==="done"?"✓ Done":done==="skip"?"Skipped":"Mark done"}</button>
+    </div>
+  </article>`;
+}
+function editorHtml(p){
+  const d = docOf(p.id); const who = whoOf(p).split(",").filter(Boolean);
+  return `<div class="editwhen" data-id="${p.id}">
+    <label>Day<select class="eday">${DAYS.map(x=>`<option value="${x}" ${dayOf(p).startsWith(x)?"selected":""}>${DAYNAMES[x]}</option>`).join("")}</select></label>
+    <label>Time<input type="time" class="etime" value="${toMin(timeOf(p))!=null?fmt(toMin(timeOf(p))):""}"></label>
+    <label class="full">Who<span style="display:flex;gap:12px;margin-top:4px">${WHO.map(([k,n])=>`<label style="flex-direction:row;align-items:center;gap:5px;font-size:14px;color:var(--fg)"><input type="checkbox" class="ewho" value="${k}" ${who.includes(k)?"checked":""} style="width:18px;height:18px;min-height:0">${n}</label>`).join("")}<span class="hint">(none = everyone)</span></span></label>
+    <textarea class="enote" placeholder="Your note (reservation name, table, what to order…)">${esc(d.note||"")}</textarea>
+    <div class="ebtns"><button type="button" class="btn primary esave">Save</button><button type="button" class="btn ereset" ${d.time||d.day?"":"disabled"}>Reset time</button>${p.custom?`<button type="button" class="btn danger edel">Delete item</button>`:""}<button type="button" class="btn ecancel">Cancel</button></div>
+  </div>`;
+}
+
+// ============================================================ PLAN view
+const TABS = [
+  {id:"fri", label:"Fri", filter:p=>dayOf(p).includes("Fri")||(!docOf(p.id).day&&(p.layer==="Late dinner"||p.layer==="Hotel & transport"))},
+  {id:"sat", label:"Sat", filter:p=>dayOf(p).includes("Sat")},
+  {id:"sun", label:"Sun", filter:p=>dayOf(p).includes("Sun")},
+  {id:"mon", label:"Mon", filter:p=>dayOf(p).includes("Mon")},
+  {id:"spa", label:"Lidia spa", filter:p=>p.layer==="Lidia spa"},
+  {id:"all", label:"Everything", filter:p=>true},
+];
+function visibleItems(){
+  const t = TABS.find(x=>x.id===curTab()) || TABS[0];
+  return PLACES.filter(p=>t.filter(p)).filter(p=>!whoFilter || !whoOf(p) || whoOf(p).split(",").includes(whoFilter)).filter(p=>!onlyPicks || confirmedish(p));
+}
+function slotKey(p){ const tt=timeOf(p); const t=tt.match(/^\d\d:\d\d/); return t?t[0]:(tt||dayOf(p)||""); }
+function renderPlan(){
+  const ct = curTab();
+  document.getElementById("tabs").innerHTML = TABS.map(t=>`<button type="button" class="tab" role="tab" data-tab="${t.id}" aria-selected="${t.id===ct}">${t.label}</button>`).join("");
+  document.getElementById("chips").innerHTML = [["","Everyone"],...WHO].map(([k,n])=>`<button type="button" class="chip" data-who="${k}" aria-pressed="${whoFilter===k}">${n}</button>`).join("") + `<button type="button" class="chip" data-picks="1" aria-pressed="${onlyPicks}">Booked + picks only</button>`;
+  const items = visibleItems();
+  // group by time slot
+  const groups = new Map();
+  for(const p of items){ const k=slotKey(p); if(!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
+  const keys = [...groups.keys()].sort((a,b)=>{ const ta=toMin(a), tb=toMin(b); if(ta!=null&&tb!=null) return ta-tb; if(ta!=null) return -1; if(tb!=null) return 1; return a.localeCompare(b); });
+  let num = 0, html = "";
+  for(const k of keys){
+    html += `<div class="slot"><div class="t">${esc(k||"Anytime")}</div><div class="rows">${groups.get(k).map(p=>rowHtml(p, ++num)).join("")}</div></div>`;
+  }
+  document.getElementById("list").innerHTML = html || `<div class="card empty">Nothing here for this filter.</div>`;
+  renderTimeline();
+}
+
+// ---------- timeline
+function timelineEvents(dayKey){
+  const evs = [];
+  for(const p of PLACES){ if(p.layer==="Hotel & transport" || !confirmedish(p) || doneOf(p)==="skip") continue; const d = DAYS.find(x=>dayOf(p).startsWith(x)); if(d!==dayKey) continue; const t=toMin(timeOf(p)); if(t==null) continue; evs.push({id:p.id, p, name:p.name, t, lat:p.lat, lng:p.lng, pick:!bookedOf(p), done:doneOf(p)==="done"}); }
+  if(dayKey==="Fri"){ evs.push({id:"haneda", p:byId.haneda, name:"Land at Haneda T3", t:FLIGHT.landMin, lat:byId.haneda.lat, lng:byId.haneda.lng, anchor:true}); evs.push({id:"hotel", p:byId.hotel, name:"Check in (estimate)", t:FLIGHT.checkinMin, lat:HOTEL.lat, lng:HOTEL.lng, anchor:true}); }
+  if(dayKey==="Mon"){ evs.push({id:"hotel", p:byId.hotel, name:"Leave the hotel for Haneda", t:FLIGHT.leaveHotelMin, lat:HOTEL.lat, lng:HOTEL.lng, anchor:true}); evs.push({id:"haneda", p:byId.haneda, name:"Flight to San Francisco", t:FLIGHT.departMin, lat:byId.haneda.lat, lng:byId.haneda.lng, anchor:true}); }
+  evs.sort((a,b)=>a.t-b.t);
+  return evs;
+}
+function renderTimeline(){
+  const el = document.getElementById("timeline"); let html = "";
+  const ct = curTab(); const dayKeys = ct==="all" || ct==="spa" ? DAYS : [ct[0].toUpperCase()+ct.slice(1)];
+  for(const d of dayKeys){
+    const evs = timelineEvents(d); if(!evs.length) continue;
+    html += `<div class="tlday">${DAYNAMES[d]}</div>`;
+    evs.forEach((e,i)=>{
+      html += `<div class="tlev ${e.anchor?"anchor":""} ${e.done?"done":""} ${selected===e.id?"sel":""}" data-id="${e.id}"><div class="tlt">${fmt(e.t)}</div><div class="tln">${esc(e.name)}${e.pick?' <span class="hint">(pick)</span>':""}</div></div>`;
+      const nx = evs[i+1]; if(nx){ const tr = travel(e, nx); const gap = nx.t-e.t; if(tr){ const tight = gap < tr.min+20; html += `<div class="tlgo ${tight?"tight":gap<tr.min+45?"ok":""}"><span>${travelText(tr)}</span><span>${tight?"<b>tight</b> · ":""}leave by <b>${fmt(nx.t-tr.min)}</b></span></div>`; } }
+    });
+  }
+  el.innerHTML = html || `<span class="empty">Nothing with a time yet. Mark items ✓ or booked and give them a time.</span>`;
+}
+
+// ============================================================ NOW view
+function renderNow(){
+  const el = document.getElementById("now"); const n = tokyoNow(); const tk = todayKey(); const td = tripDates();
+  let html = "";
+  if(!td){
+    html += `<div class="card"><div class="setup"><b>When does the weekend start?</b> Set the Friday you land and this page will show what's next, countdowns and the forecast.<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><input type="date" id="friday"><button type="button" class="btn primary" id="savefriday">Save</button></div></div></div>`;
+  }
+  const dayKey = tk || (daysUntilTrip()!=null && daysUntilTrip()>0 ? "Fri" : "Sat");
+  const evs = timelineEvents(dayKey);
+  // "current" = the last event that has started and isn't done; "next" = the first one still ahead
+  const future = tk ? evs.filter(e=>e.t > n.min && !e.done) : evs;
+  const current = tk ? [...evs].reverse().find(e=>e.t <= n.min && !e.done && !e.anchor) : null;
+  const next = future[0] || null;
+  const origin = myPos || current || (function(){ const prev=[...evs].reverse().find(e=>e.t<=n.min); return prev || HOTEL; })();
+  const originName = myPos ? "here" : origin===HOTEL || origin.id==="hotel" ? "the hotel" : (origin.name||"").replace(/\s*\(.*$/,"");
+  html += `<div class="nowgrid"><div class="card">`;
+  if(tk){
+    html += `<div class="tag">${DAYNAMES[tk]} · ${fmt(n.min)} in Tokyo</div>`;
+    if(current) html += `<p class="sub">Now: <b>${esc(current.name)}</b> since ${fmt(current.t)} · <button type="button" class="copy" data-done="${current.id}">done</button></p>`;
+    if(next){
+      const tr = travel(origin, next); const until = next.t - n.min; const leave = tr ? next.t - tr.min : null;
+      html += `<div class="big">${esc(next.name)}</div>
+        <p class="countdown">at <b>${fmt(next.t)}</b> · in <b>${until>=60?Math.floor(until/60)+" h "+(until%60)+" min":until+" min"}</b></p>
+        ${leave!=null ? `<div class="leaveby ${leave-n.min<10?"tight":""}">Leave ${esc(originName)} by ${fmt(leave)} · ${travelText(tr)}${myPos?"":" · tap Locate on the map for your real position"}</div>` : ""}
+        ${next.p ? hoursLine(next.p, tk, n.min) : ""}
+        ${next.p && next.p.note ? `<p class="note">${esc(next.p.note)}</p>`:""}
+        ${next.p && docOf(next.id).note ? `<p class="usernote">📝 ${esc(docOf(next.id).note)}</p>`:""}
+        <div class="row-actions">
+          ${next.p && next.p.lat!=null ? `<a class="btn primary" href="${dirUrl(next.p)}" target="_blank" rel="noopener">Directions</a>`:""}
+          ${next.p && next.p.phone ? `<a class="btn" href="tel:${esc(next.p.phone.replace(/[^+\d]/g,""))}">Call</a>`:""}
+          ${next.p && next.p.address ? `<button type="button" class="btn" data-driver="${next.id}">Show to driver</button>`:""}
+          ${!next.anchor ? `<button type="button" class="btn" data-done="${next.id}">Done ✓</button><button type="button" class="btn" data-skip="${next.id}">Skip</button>`:""}
+          <button type="button" class="btn" data-goto="${next.id}">On map</button>
+        </div>`;
+    } else {
+      html += `<div class="big">Nothing more on the plan today</div><p class="sub">Open Plan to pick something, or add your own item.</p>`;
+    }
+  } else if(td){
+    const du = daysUntilTrip();
+    html += `<div class="tag">${du>0?`${du} day${du===1?"":"s"} to go`:"the weekend is over"}</div><div class="big">${du>0?"Friday plan preview":"Thanks for coming"}</div><p class="sub">Landing ${fmt(FLIGHT.landMin)} at Haneda · GOKU sukiyaki at 22:00 · leave hotel Monday ${fmt(FLIGHT.leaveHotelMin)}</p>`;
+  } else {
+    html += `<div class="big">Saturday preview</div>`;
+  }
+  // compact list for the day
+  html += `<div class="compact">` + evs.map(e=>`<div class="item ${e.done?"done":""} ${next&&e.id===next.id&&e.t===next.t?"":""}" data-goto="${e.id}"><b>${fmt(e.t)}</b><span>${esc(e.name)}${e.pick?' <span class="hint">(pick)</span>':""}</span>${e.anchor?"<span></span>":`<button type="button" class="copy" data-done="${e.id}" aria-label="Toggle done">${e.done?"undo":"done"}</button>`}</div>`).join("") + `</div>`;
+  html += `</div>`;
+  // right column: weather + quick cards
+  html += `<div><div class="card"><h2>Weather</h2><div id="wx" class="hint">Loading forecast…</div></div>
+    <div class="card" style="margin-top:12px"><h2>Open now near the hotel</h2><div id="opennow"></div></div></div></div>`;
+  el.innerHTML = html;
+  renderWeather(); renderOpenNow();
+}
+async function renderWeather(){
+  const el = document.getElementById("wx"); if(!el) return;
+  const w = await loadWeather();
+  if(!w){ el.textContent = "Forecast not available offline."; return; }
+  if(w.tooFar){ el.textContent = `Forecast appears about two weeks before ${w.start}.`; return; }
+  const td = tripDates();
+  el.innerHTML = `<div class="wx">${w.time.map((d,i)=>{ const key = td ? DAYS.find(k=>td[k]===d) : null; return `<div class="d"><small>${key?DAYNAMES[key].slice(0,3):d.slice(5)}</small><b>${Math.round(w.temperature_2m_max[i])}°</b><small>${Math.round(w.temperature_2m_min[i])}° · ${w.precipitation_probability_max[i]??"–"}% rain</small><small>${WXCODE(w.weather_code[i])}</small></div>`; }).join("")}</div>`;
+}
+function renderOpenNow(){
+  const el = document.getElementById("opennow"); if(!el) return;
+  const n = tokyoNow(); const wd = n.weekday;
+  const list = PLACES.filter(p=>p.hours && p.lat!=null && stateOf(p)!=="no").map(p=>({p, st:openStatus(p, wd, n.min), d:km(myPos||HOTEL, p)})).filter(x=>x.st.known && x.st.open).sort((a,b)=>a.d-b.d).slice(0,8);
+  el.innerHTML = list.length ? `<div class="compact">${list.map(x=>`<div class="item" data-goto="${x.p.id}"><b>${x.d<1?Math.round(x.d*1000)+" m":x.d.toFixed(1)+" km"}</b><span>${esc(x.p.name)}</span><span class="hint">to ${fmt(x.st.until)}</span></div>`).join("")}</div><p class="hint" style="margin:8px 0 0">Distances from ${myPos?"your position":"the hotel"} · ${esc(wd)} ${fmt(n.min)} Tokyo time.</p>` : `<span class="empty">Nothing with known hours is open right now.</span>`;
+}
+
+// ============================================================ MAP
+function ensureMap(){
+  if(LMAP) return LMAP;
+  LMAP = L.map("map", {zoomControl:true, attributionControl:true, tap:true});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(LMAP);
+  LMAP.setView([35.67,139.765], 13);
+  renderMap(); fitAll();
+  return LMAP;
+}
+function markerClass(p){ const st=stateOf(p), done=doneOf(p); return ["mk", p.id==="hotel"?"hotel":"", p.kind==="plan"||bookedOf(p)?"plan":"", st?"st-"+st:"", done==="done"?"done":"", selected===p.id?"sel":""].filter(Boolean).join(" "); }
+function renderMap(){
+  if(!LMAP) return;
+  const seen = new Set(); let num = 0;
+  for(const p of PLACES){
+    if(p.lat==null) continue; seen.add(p.id); num++;
+    const icon = L.divIcon({className:"", html:`<div class="${markerClass(p)}">${p.id==="hotel"?"H":num}</div>`, iconSize:[26,26], iconAnchor:[13,13], popupAnchor:[0,-12]});
+    if(MARKERS[p.id]){ MARKERS[p.id].setIcon(icon); MARKERS[p.id].setLatLng([p.lat,p.lng]); }
+    else { const m = L.marker([p.lat,p.lng], {icon, title:p.name, zIndexOffset: p.id==="hotel"?1000:0}).addTo(LMAP); m.on("click", ()=>{ select(p.id, false); }); MARKERS[p.id]=m; }
+    MARKERS[p.id].bindPopup(`<div class="tag">${esc(p.cat)} · ${whenText(p)}</div><p class="name" style="margin:2px 0 4px;font-weight:700">${esc(p.name)}</p>${p.lat!=null?`<a href="${dirUrl(p)}" target="_blank" rel="noopener">Directions</a>`:""}${p.link?` · <a href="${esc(p.link)}" target="_blank" rel="noopener">Google Maps</a>`:""}`);
+  }
+  for(const id in MARKERS) if(!seen.has(id)){ LMAP.removeLayer(MARKERS[id]); delete MARKERS[id]; }
+}
+function fitAll(){ if(!LMAP) return; const pts = PLACES.filter(p=>p.lat!=null && p.id!=="haneda").map(p=>[p.lat,p.lng]); if(pts.length) LMAP.fitBounds(pts, {padding:[24,24]}); }
+function select(id, go){
+  selected = id; renderPlan(); renderMap(); renderDetail();
+  if(go){ setView("map"); }
+  else if(LMAP && MARKERS[id]){ MARKERS[id].openPopup(); }
+}
+function renderDetail(){
+  const el = document.getElementById("detail"); const p = byId[selected];
+  if(!p){ el.innerHTML = `<span class="empty">Tap a pin or a list item to see details here.</span>`; return; }
+  el.innerHTML = rowHtml(p, "•");
+}
+function startWatch(){
+  if(!navigator.geolocation || watchId!=null || !LS.get("tokyo-trip-geo", false)) return;
+  watchId = navigator.geolocation.watchPosition(pos=>{ myPos = {lat:pos.coords.latitude, lng:pos.coords.longitude, id:"me"}; updateMe(); renderNow(); }, ()=>{}, {enableHighAccuracy:true, maximumAge:30000, timeout:20000});
+}
+function stopWatch(){ if(watchId!=null && navigator.geolocation){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
+function updateMe(){ if(!LMAP || !myPos) return; if(!MEMARK){ MEMARK = L.marker([myPos.lat,myPos.lng], {icon:L.divIcon({className:"", html:'<div class="mk me"></div>', iconSize:[18,18], iconAnchor:[9,9]}), title:"You", zIndexOffset:2000}).addTo(LMAP); } else MEMARK.setLatLng([myPos.lat,myPos.lng]); }
+function locate(){
+  if(!navigator.geolocation){ toast("No location on this device."); return; }
+  LS.set("tokyo-trip-geo", true);
+  navigator.geolocation.getCurrentPosition(pos=>{ myPos = {lat:pos.coords.latitude, lng:pos.coords.longitude, id:"me"}; ensureMap(); updateMe(); LMAP.setView([myPos.lat,myPos.lng], Math.max(LMAP.getZoom(), 15)); renderNow(); startWatch(); }, err=>toast("Couldn't get your location: "+err.message), {enableHighAccuracy:true, timeout:15000});
+}
+
+// ---------- offline map tiles
+function tileList(){
+  const pts = PLACES.filter(p=>p.lat!=null && p.id!=="haneda"); if(!pts.length) return [];
+  const la0=Math.min(...pts.map(p=>p.lat))-0.004, la1=Math.max(...pts.map(p=>p.lat))+0.004, lo0=Math.min(...pts.map(p=>p.lng))-0.004, lo1=Math.max(...pts.map(p=>p.lng))+0.004;
+  const tx=(lat,lng,z)=>{ const n=2**z; return [Math.floor((lng+180)/360*n), Math.floor((1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*n)]; };
+  const out=[]; const add=(a0,a1,o0,o1,z)=>{ const [x0,y1]=tx(a0,o0,z), [x1,y0]=tx(a1,o1,z); for(let x=x0;x<=x1;x++) for(let y=y0;y<=y1;y++) out.push(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`); };
+  for(let z=12; z<=15; z++) add(la0,la1,lo0,lo1,z);
+  add(HOTEL.lat-0.011, HOTEL.lat+0.011, HOTEL.lng-0.014, HOTEL.lng+0.014, 16);      // hotel neighbourhood in detail
+  add(35.5405, 35.5505, 139.762, 139.776, 15);                                        // Haneda T3
+  return [...new Set(out)];
+}
+async function saveMapOffline(){
+  if(!("caches" in window)){ toast("Offline storage isn't available in this browser."); return; }
+  const urls = tileList(); const prog = document.getElementById("tileprog"); const bar = prog.querySelector("i"); prog.hidden=false;
+  const cache = await caches.open("tokyo-tiles-v1"); let done=0, failed=0;
+  const worker = async()=>{ while(urls.length){ const u=urls.shift(); try{ if(!(await cache.match(u))) await cache.add(new Request(u, {mode:"no-cors"})); }catch(e){ failed++; } done++; bar.style.width=Math.round(done/(done+urls.length)*100)+"%"; } };
+  await Promise.all([worker(), worker()]);
+  prog.hidden=true; document.getElementById("maphint").textContent = `Map saved for offline (${done-failed} tiles${failed?`, ${failed} failed`:""}).`;
+  LS.set("tokyo-trip-tiles-saved", Date.now());
+}
+
+// ============================================================ ESSENTIALS
+const PHRASES = [
+  ["すみません","Sumimasen","Excuse me / sorry (gets attention)"],
+  ["ありがとうございます","Arigatō gozaimasu","Thank you"],
+  ["四人です","Yonin desu","Four people (table for four)"],
+  ["予約していません。待ち時間はどのくらいですか？","Yoyaku shite imasen. Machijikan wa dono kurai desu ka?","No reservation. How long is the wait?"],
+  ["予約した〇〇です","Yoyaku shita ○○ desu","I have a reservation under ○○"],
+  ["英語のメニューはありますか？","Eigo no menyū wa arimasu ka?","Do you have an English menu?"],
+  ["おすすめは何ですか？","Osusume wa nan desu ka?","What do you recommend?"],
+  ["子供用の取り皿をください","Kodomo-yō no torizara o kudasai","Small plates for the kids, please"],
+  ["お水をください","Omizu o kudasai","Water, please"],
+  ["お会計をお願いします","Okaikei o onegaishimasu","The bill, please"],
+  ["カードは使えますか？","Kādo wa tsukaemasu ka?","Can I pay by card?"],
+  ["美味しかったです","Oishikatta desu","That was delicious"],
+  ["トイレはどこですか？","Toire wa doko desu ka?","Where is the toilet?"],
+  ["この住所までお願いします","Kono jūsho made onegaishimasu","To this address, please (show phone)"],
+  ["免税できますか？","Menzei dekimasu ka?","Can I get tax-free?"],
+  ["写真を撮ってもいいですか？","Shashin o totte mo ii desu ka?","May I take a photo?"],
+];
+function renderEss(){
+  const el = document.getElementById("ess"); if(!el) return; const fx = fxRate(); const td = tripDates();
+  const spends = Object.entries(store).filter(([id,d])=>d && d.spend && !d.deleted).map(([id,d])=>({id, ...d})).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  const total = spends.reduce((s,x)=>s+(+x.amount||0),0);
+  const byDay = {}; spends.forEach(s=>{ byDay[s.day||"?"]=(byDay[s.day||"?"]||0)+(+s.amount||0); });
+  const nums = LS.get("tokyo-trip-contacts", {}) || {};
+  el.innerHTML = `
+  <div class="card"><h2>Hotel</h2>
+    <dl class="kv"><dt>Name</dt><dd>ENT TERRACE GINZA PREMIUM</dd><dt>Address</dt><dd>3-14-6 Ginza, Chuo-ku, Tokyo 104-0061</dd><dt>Phone</dt><dd><a href="tel:+81362641440">+81 3-6264-1440</a></dd><dt>Check-in</dt><dd>16:00–01:00 · check-out 10:00</dd><dt>Station</dt><dd>Higashi-Ginza, 3 min (Hibiya + Asakusa lines)</dd></dl>
+    <div class="taxi" lang="ja">東京都中央区銀座3丁目14-6<br>ENT TERRACE GINZA PREMIUM<br><span style="font-size:14px;color:var(--muted)">歌舞伎座の近く (near Kabuki-za)</span></div>
+    <div class="row-actions"><button type="button" class="btn" data-copy="ENT TERRACE GINZA PREMIUM, 東京都中央区銀座3丁目14-6 (3-14-6 Ginza, Chuo-ku)">Copy for taxi</button><a class="btn" href="${dirUrl(HOTEL)}" target="_blank" rel="noopener">Directions to hotel</a></div>
+  </div>
+  <div class="card"><h2>Flights &amp; transfers</h2>
+    <dl class="kv"><dt>Arrive</dt><dd>Friday ${fmt(FLIGHT.landMin)} · Haneda T3</dd><dt>To hotel</dt><dd>Keikyu → Asakusa Line through-train to Higashi-Ginza (~35 min, ¥600 each) or taxi ~¥7,000–9,000, 30–40 min</dd><dt>Depart</dt><dd>Monday ${fmt(FLIGHT.departMin)} to SFO · leave hotel by ${fmt(FLIGHT.leaveHotelMin)}</dd><dt>Luggage</dt><dd>Check-out 10:00; ask the hotel to hold bags until ~15:00</dd></dl>
+    <div class="setup" style="margin-top:10px"><b>Trip dates</b> · Friday: <input type="date" id="friday" value="${esc(fridayDate())}"> <button type="button" class="btn small primary" id="savefriday">Save</button> <span class="hint">${td?`Sat ${td.Sat} · Sun ${td.Sun} · Mon ${td.Mon}`:"not set"}</span></div>
+  </div>
+  <div class="card"><h2>Emergency &amp; help</h2>
+    <dl class="kv"><dt>Police</dt><dd><a href="tel:110">110</a></dd><dt>Ambulance / fire</dt><dd><a href="tel:119">119</a></dd><dt>Visitor hotline</dt><dd><a href="tel:+815038162787">050-3816-2787</a> (JNTO, 24 h, English)</dd><dt>Lost &amp; found</dt><dd>Tell any koban (police box); station staff for trains</dd></dl>
+    <p class="sub" style="margin-top:8px">Family numbers (kept on this phone only, not shared):</p>
+    <div class="nums">${["Philipp","Lidia","Kids / other"].map((n,i)=>`<label class="hint">${n}<input type="tel" class="contact" data-i="${i}" value="${esc(nums[i]||"")}" placeholder="+1 …"></label>`).join("")}</div>
+  </div>
+  <div class="card"><h2>Money</h2>
+    <div class="yen"><label class="hint">Yen<input type="number" id="yen" inputmode="decimal" placeholder="¥"></label><label class="hint">US dollars<input type="number" id="usd" inputmode="decimal" placeholder="$"></label></div>
+    <p class="hint" style="margin:6px 0">Rate ¥${fx.rate.toFixed(1)} per $1 (${esc(fx.src)}). <button type="button" class="copy" id="fxedit">set rate</button></p>
+    <h2 style="margin-top:12px">Spend tracker <span class="hint" style="font-weight:400">· shared</span></h2>
+    <p class="sub">Total <b>¥${total.toLocaleString()}</b> ≈ $${(total/fx.rate).toFixed(0)}${Object.keys(byDay).length?` · ${Object.entries(byDay).map(([d,v])=>`${d} ¥${v.toLocaleString()}`).join(" · ")}`:""}</p>
+    <div class="spendform"><input type="number" id="samt" inputmode="numeric" placeholder="¥ amount"><input type="text" id="slabel" placeholder="what (sushi, taxi…)"><button type="button" class="btn primary" id="sadd">Add</button></div>
+    <div class="spendlist">${spends.slice(-12).reverse().map(s=>`<div class="s"><span>${esc(s.label||"—")} <span class="hint">${esc(s.day||"")}${s.by?" · "+esc(s.by):""}</span></span><b>¥${(+s.amount||0).toLocaleString()}</b><button type="button" class="copy" data-sdel="${s.id}" aria-label="Remove">✕</button></div>`).join("")}</div>
+  </div>
+  <div class="card"><h2>Phrases</h2><div class="phr">${PHRASES.map(([j,r,e])=>`<div class="p"><b lang="ja">${j}</b><i>${esc(r)} — ${esc(e)}</i></div>`).join("")}</div></div>
+  <div class="card"><h2>Good to know</h2>
+    <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.55">
+      <li><b>Trains:</b> add a Suica to Apple Wallet (Wallet → + → Transit card → Suica) or buy a Welcome Suica at Haneda. Kids 6–11 pay half; under 6 ride free.</li>
+      <li><b>Cash:</b> many small restaurants and market stalls are cash only. 7-Eleven ATMs take foreign cards.</li>
+      <li><b>Tax-free:</b> passport + ¥5,000 minimum per shop; many Ginza stores do it at the counter.</li>
+      <li><b>No tipping.</b> Say "gochisōsama deshita" when leaving a restaurant.</li>
+      <li><b>Taxis:</b> doors open automatically; show the address card above. GO app works with foreign cards.</li>
+      <li><b>Queues:</b> popular sushi counters queue before opening; Sushi Dai ~10:00 for 10:30. Shrines and gardens open early, ideal with jet lag.</li>
+      <li><b>Trash cans are rare:</b> carry a small bag. Eat snacks where you bought them, not while walking.</li>
+    </ul>
+  </div>
+  <div class="card"><h2>This app</h2>
+    <dl class="kv"><dt>Your name</dt><dd><input type="text" id="mename" value="${esc(me)}" placeholder="shown next to your changes" style="font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg)"></dd>
+    <dt>Home screen</dt><dd id="installrow">${IOS?"Safari: Share → <b>Add to Home Screen</b>. It then opens full-screen and works offline.":'<button type="button" class="btn small" id="installbtn">Add to home screen</button> <span class="hint">or use the browser menu</span>'}</dd>
+    <dt>Offline</dt><dd>The app and your data are kept on the phone. Save the map tiles on the Map tab before you leave Wi-Fi.</dd>
+    <dt>Sync</dt><dd>${API?"Shared through the Picks tab of the Japan Trip sheet":"Not configured (device only)"}</dd>
+    <dt>Backup</dt><dd><button type="button" class="btn small" id="exportbtn">Copy backup link</button> <span class="hint">pastes all picks/notes into another phone</span></dd>
+    <dt>Build</dt><dd class="hint">${esc(BUILD)}</dd></dl>
+  </div>`;
+}
+
+// ============================================================ add-your-own sheet
+function parseLatLng(s){
+  s = String(s||"");
+  let m = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || s.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+  return m ? {lat:+m[1], lng:+m[2]} : null;
+}
+function openSheet(){
+  const tk = todayKey(); const defDay = DAYS.find(d=>d.toLowerCase()===curTab()) || tk || "Sat";
+  document.getElementById("sheet").innerHTML = `<div class="sheet" id="sheetbg"><div class="panel">
+    <h2>Add your own item</h2><p class="sub">A place you found on the way, a shop, a snack. Paste a Google Maps link to put it on the map.</p>
+    <div class="addform">
+      <label class="full">Name<input type="text" id="aname" placeholder="e.g. Melon pan stand by the station" required></label>
+      <label>Category<select id="acat">${CATS.map(c=>`<option ${c==="Other"?"selected":""}>${c}</option>`).join("")}</select></label>
+      <label>Day<select id="aday">${DAYS.map(d=>`<option value="${d}" ${d===defDay?"selected":""}>${DAYNAMES[d]}</option>`).join("")}</select></label>
+      <label>Time<input type="time" id="atime"></label>
+      <label>Who<select id="awho"><option value="">Everyone</option>${WHO.map(([k,n])=>`<option value="${k}">${n}</option>`).join("")}</select></label>
+      <label class="full">Google Maps link or "lat, lng"<input type="text" id="alink" placeholder="https://maps.app.goo.gl/… or 35.67, 139.76" inputmode="url"></label>
+      <label class="full">Address (optional)<input type="text" id="aaddr"></label>
+      <label class="full">Note<textarea id="anote"></textarea></label>
+      <div class="full row-actions"><button type="button" class="btn" id="ahere">Use my location</button><span class="hint" id="acoords"></span></div>
+      <div class="full row-actions"><button type="button" class="btn primary" id="asave">Add</button><button type="button" class="btn" id="acancel">Cancel</button></div>
+    </div></div></div>`;
+  let coords = null;
+  const show = ()=>{ document.getElementById("acoords").textContent = coords ? `pin at ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : ""; };
+  document.getElementById("alink").addEventListener("input", e=>{ coords = parseLatLng(e.target.value) || coords; show(); });
+  document.getElementById("ahere").addEventListener("click", ()=>{ if(!navigator.geolocation) return toast("No location available"); navigator.geolocation.getCurrentPosition(p=>{ coords={lat:p.coords.latitude, lng:p.coords.longitude}; show(); }, e=>toast("Couldn't get location: "+e.message)); });
+  document.getElementById("acancel").addEventListener("click", closeSheet);
+  document.getElementById("sheetbg").addEventListener("click", e=>{ if(e.target.id==="sheetbg") closeSheet(); });
+  document.getElementById("asave").addEventListener("click", ()=>{
+    const name = document.getElementById("aname").value.trim(); if(!name) return toast("Give it a name");
+    const link = document.getElementById("alink").value.trim(); coords = parseLatLng(link) || coords;
+    const id = uid("c");
+    const doc = nextDoc(id, {custom:true, name, cat:document.getElementById("acat").value, day:document.getElementById("aday").value, time:document.getElementById("atime").value, who:document.getElementById("awho").value, link:/^https?:/.test(link)?link:"", address:document.getElementById("aaddr").value.trim(), note:document.getElementById("anote").value.trim(), lat:coords?coords.lat:null, lng:coords?coords.lng:null, state:"yes"});
+    writeDoc(id, doc);
+    closeSheet(); toast("Added to " + DAYNAMES[doc.day]);
+  });
+  document.getElementById("aname").focus();
+}
+function closeSheet(){ document.getElementById("sheet").innerHTML=""; }
+
+// ============================================================ driver card
+function showDriver(p){
+  document.getElementById("sheet").innerHTML = `<div class="sheet" id="sheetbg"><div class="panel">
+    <div class="tag">Show this to the driver</div>
+    <div class="taxi"><b>${esc(p.name)}</b><br>${esc(p.address||"")}${p.phone?`<br><span style="font-size:16px">☎ ${esc(p.phone)}</span>`:""}</div>
+    <div class="taxi" style="font-size:18px;margin-top:8px" lang="ja">ここまでお願いします<br><span style="font-size:13px;color:var(--muted)">Koko made onegaishimasu — to here, please</span></div>
+    <div class="row-actions"><a class="btn primary" href="${dirUrl(p)}" target="_blank" rel="noopener">Open in Google Maps</a>${p.link?`<a class="btn" href="${esc(p.link)}" target="_blank" rel="noopener">Place page</a>`:""}<button type="button" class="btn" data-copy="${esc(p.name+"\n"+(p.address||""))}">Copy</button><button type="button" class="btn" id="acancel">Close</button></div>
+  </div></div>`;
+  document.getElementById("acancel").addEventListener("click", closeSheet);
+  document.getElementById("sheetbg").addEventListener("click", e=>{ if(e.target.id==="sheetbg") closeSheet(); });
+}
+
+// ============================================================ toast / copy
+let toastT=null;
+function toast(msg){ let t=document.getElementById("toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t); } t.textContent=msg; t.style.display="block"; clearTimeout(toastT); toastT=setTimeout(()=>t.style.display="none", 2600); }
+async function copyText(s){ try{ await navigator.clipboard.writeText(s); toast("Copied"); }catch(e){ prompt("Copy:", s); } }
+
+// ============================================================ events
+document.addEventListener("click", async e=>{
+  const t = e.target;
+  const nav = t.closest(".nav button"); if(nav){ setView(nav.dataset.view); return; }
+  const tb = t.closest(".tab"); if(tb){ setTab(tb.dataset.tab); return; }
+  const ch = t.closest(".chip"); if(ch){ if(ch.dataset.picks){ onlyPicks=!onlyPicks; } else whoFilter = ch.dataset.who; renderPlan(); return; }
+  if(t.closest("#fab")){ openSheet(); return; }
+  const cp = t.closest("[data-copy]"); if(cp){ e.stopPropagation(); copyText(cp.dataset.copy); return; }
+  const dr = t.closest("[data-driver]"); if(dr){ e.stopPropagation(); showDriver(byId[dr.dataset.driver]); return; }
+  const gt = t.closest("[data-goto]"); if(gt && !t.closest("[data-done]")){ select(gt.dataset.goto, true); return; }
+  const dn = t.closest("[data-done]"); if(dn){ e.stopPropagation(); const id=dn.dataset.done; await writeDoc(id, nextDoc(id, {done: doneOf(byId[id])==="done" ? null : "done"})); return; }
+  const sk = t.closest("[data-skip]"); if(sk){ e.stopPropagation(); const id=sk.dataset.skip; await writeDoc(id, nextDoc(id, {done:"skip"})); return; }
+  if(t.closest("#savefriday")){ const v=document.getElementById("friday").value; if(!v) return toast("Pick the Friday"); if(weekdayOf(v)!=="Fri" && !confirm(`${v} is a ${weekdayOf(v)}. Save anyway?`)) return; await writeDoc("_settings", nextDoc("_settings", {fridayDate:v})); toast("Trip dates saved"); tab=null; renderAll(); return; }
+  if(t.closest("#locate")){ locate(); return; }
+  if(t.closest("#fitall")){ fitAll(); return; }
+  if(t.closest("#savemap")){ saveMapOffline(); return; }
+  if(t.closest("#fxedit")){ const v = prompt("Yen per 1 US dollar (leave empty to use the live rate):", String(fxRate().rate)); if(v===null) return; if(v.trim()==="") LS.set("tokyo-trip-fx-manual", null); else if(+v>0) LS.set("tokyo-trip-fx-manual", +v); renderEss(); return; }
+  if(t.closest("#sadd")){ const a=+document.getElementById("samt").value, l=document.getElementById("slabel").value.trim(); if(!(a>0)) return toast("Enter an amount in yen"); const id=uid("s"); await writeDoc(id, nextDoc(id, {spend:true, amount:a, label:l, day: todayKey()||""})); return; }
+  const sd = t.closest("[data-sdel]"); if(sd){ await writeDoc(sd.dataset.sdel, nextDoc(sd.dataset.sdel, {deleted:true})); return; }
+  if(t.closest("#exportbtn")){ copyText(exportUrl()); return; }
+  if(t.closest("#installbtn")){ if(deferredInstall){ deferredInstall.prompt(); deferredInstall=null; } else toast("Use your browser menu → Add to Home screen / Install app"); return; }
+  // row-level controls
+  const pk = t.closest(".pick"); if(pk){ e.stopPropagation(); const id=pk.dataset.id, s=pk.dataset.s; await writeDoc(id, nextDoc(id, {state: stateOf(byId[id])===s ? null : s})); return; }
+  const bk = t.closest(".book"); if(bk){ e.stopPropagation(); const id=bk.dataset.id, p=byId[id]; const cur=bookedOf(p); const next = cur ? (p.kind==="plan" ? false : null) : true; await writeDoc(id, nextDoc(id, {booked: next, state: next===true ? "yes" : stateOf(p)||null})); return; }
+  const db = t.closest(".doneb"); if(db){ e.stopPropagation(); const id=db.dataset.id; const cur=doneOf(byId[id]); await writeDoc(id, nextDoc(id, {done: cur==="" ? "done" : cur==="done" ? "skip" : null})); return; }
+  const w = t.closest(".when"); if(w){ e.stopPropagation(); editing = editing===w.dataset.id ? null : w.dataset.id; renderPlan(); renderDetail(); return; }
+  const ed = t.closest(".editwhen");
+  if(ed){
+    e.stopPropagation(); const id = ed.dataset.id, p = byId[id];
+    if(t.closest(".esave")){
+      const day = ed.querySelector(".eday").value, time = ed.querySelector(".etime").value, note = ed.querySelector(".enote").value.trim();
+      const who = [...ed.querySelectorAll(".ewho:checked")].map(x=>x.value).join(",");
+      const origDay = (p.custom ? "" : p.day.split("/")[0]), origTime = p.custom ? "" : (toMin(p.time)!=null ? fmt(toMin(p.time)) : "");
+      const patch = p.custom ? {day, time, note, who} : { day: day!==origDay ? day : null, time: time!==origTime ? time : null, note, who: who || null };
+      editing=null; await writeDoc(id, nextDoc(id, patch)); return;
+    }
+    if(t.closest(".ereset")){ editing=null; await writeDoc(id, nextDoc(id, {time:null, day:null})); return; }
+    if(t.closest(".edel")){ if(!confirm("Delete this item for everyone?")) return; editing=null; if(selected===id) selected=null; await writeDoc(id, nextDoc(id, {deleted:true})); return; }
+    if(t.closest(".ecancel")){ editing=null; renderPlan(); renderDetail(); return; }
+    return;
+  }
+  const r = t.closest(".row,.tlev"); if(r && !t.closest("a,button,input,select,textarea")){ select(r.dataset.id, true); return; }
+});
+document.addEventListener("keydown", e=>{ if(e.key==="Enter" && e.target.classList.contains("row")) select(e.target.dataset.id, true); if(e.key==="Escape"){ closeSheet(); editing=null; renderPlan(); } });
+document.addEventListener("input", e=>{
+  const t=e.target;
+  if(t.id==="yen"){ const u=document.getElementById("usd"); u.value = t.value ? (t.value/fxRate().rate).toFixed(2) : ""; }
+  if(t.id==="usd"){ const y=document.getElementById("yen"); y.value = t.value ? Math.round(t.value*fxRate().rate) : ""; }
+  if(t.classList.contains("contact")){ const c=LS.get("tokyo-trip-contacts", {})||{}; c[t.dataset.i]=t.value; LS.set("tokyo-trip-contacts", c); }
+  if(t.id==="mename"){ me=t.value.trim(); LS.set("tokyo-trip-me", me); }
+});
+
+// ============================================================ install + service worker
+let deferredInstall = null;
+window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferredInstall=e; });
+if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+
+// ============================================================ boot
+(function boot(){
+  const tk = todayKey();
+  if(!view) view = "now";
+  setView(view);
+  renderAll();
+  loadFx().then(()=>renderEss());
+  flush();
+  setInterval(()=>{ renderClock(); if(view==="now") renderNow(); }, 60000);
+})();
+
+</script>
 </body>
 </html>

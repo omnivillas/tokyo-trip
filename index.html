@@ -881,8 +881,8 @@ document.addEventListener("click", async e=>{
   const t = e.target;
   const nav = t.closest(".nav button"); if(nav){ setView(nav.dataset.view); return; }
   const tb = t.closest(".tab"); if(tb){ setTab(tb.dataset.tab); return; }
-  const ch = t.closest(".chip"); if(ch){ if(ch.dataset.picks){ onlyPicks=!onlyPicks; } else whoFilter = ch.dataset.who; renderPlan(); return; }
   if(t.closest("#addbtn")){ openSheet(); return; }
+  const ch = t.closest(".chip"); if(ch){ if(ch.dataset.picks){ onlyPicks=!onlyPicks; } else whoFilter = ch.dataset.who; renderPlan(); return; }
   const cp = t.closest("[data-copy]"); if(cp){ e.stopPropagation(); copyText(cp.dataset.copy); return; }
   const dr = t.closest("[data-driver]"); if(dr){ e.stopPropagation(); showDriver(byId[dr.dataset.driver]); return; }
   const gt = t.closest("[data-goto]"); if(gt && !t.closest("[data-done]")){ select(gt.dataset.goto, true); return; }

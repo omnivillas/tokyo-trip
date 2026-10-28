@@ -36,6 +36,10 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,34px);lin
 .pill.yes{color:var(--yes);border-color:transparent;background:var(--yes-soft)}
 .pill.maybe{color:var(--maybe);border-color:transparent;background:var(--maybe-soft)}
 .pill.sync{color:var(--muted)}
+.tallywrap{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.pill.share{cursor:pointer;color:var(--ink);border-color:var(--ink);font:inherit;font-size:13px;font-weight:600}
+.sharebox{width:min(100%,360px);font:12px var(--body);padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--fg)}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;max-width:min(92vw,420px);z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;max-width:1240px;margin:0 auto;padding-block:6px 14px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
 .tab{border:1px solid var(--line);background:var(--paper);color:var(--fg);border-radius:8px;padding:7px 12px;font:inherit;font-weight:500;cursor:pointer}
 .tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
@@ -114,9 +118,9 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,34px);lin
 <div class="top">
   <div>
     <h1>Tokyo Family Weekend</h1>
-    <p>Friday to Monday from ENT TERRACE Ginza. Blue-edged rows are booked; <b>Mark booked</b> on any idea moves it there once you have a reservation. Tap <b>Yes</b>, <b>?</b> or <b>No</b> on the rest and the choice is saved in this browser.</p>
+    <p>Friday to Monday from ENT TERRACE Ginza. Blue-edged rows are booked; <b>Mark booked</b> on any idea moves it there once you have a reservation. Tap <b>Yes</b>, <b>?</b> or <b>No</b> on the rest and the choice is saved in this browser. <b>Copy share link</b> sends your picks to another phone, where they merge in.</p>
   </div>
-  <div class="tally" id="tally"><span class="pill sync" id="syncpill">Loading picks…</span></div>
+  <div class="tallywrap"><div class="tally" id="tally"></div><button type="button" class="pill share" id="sharebtn">Copy share link</button><textarea id="sharebox" class="sharebox" hidden readonly aria-label="Share link"></textarea></div>
 </div>
 
 <div class="tabs" role="tablist" id="tabs"></div>
@@ -324,8 +328,30 @@ async function setBooked(id){
   await writeDoc(id, nextDoc(id, {booked: val, state: !now ? null : (picks[id]?.state ?? null)}));
 }
 let me = "";
+// ---------- share link: picks travel in the URL hash, merged by newest timestamp per item
+function b64e(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function b64d(s){ s=s.replace(/-/g,"+").replace(/_/g,"/"); while(s.length%4) s+="="; return decodeURIComponent(escape(atob(s))); }
+function shareUrl(){ const u=new URL(location.href); u.hash = "p=" + b64e(JSON.stringify(picks)); return u.toString(); }
+function mergeFromHash(){
+  const m=location.hash.match(/[#&]p=([A-Za-z0-9_-]+)/); if(!m) return 0;
+  let incoming={}; try{ incoming=JSON.parse(b64d(m[1])); }catch(e){ return 0; }
+  let n=0;
+  for(const [id,doc] of Object.entries(incoming)){ if(!byId[id]||typeof doc!=="object") continue; const cur=picks[id]; if(!cur || String(doc.at||"") > String(cur.at||"")){ picks[id]=doc; n++; } }
+  if(n) savePicks();
+  try{ history.replaceState(null,"",location.pathname+location.search+(tab!=="all"?"#"+tab:"")); }catch(e){}
+  return n;
+}
+function toast(msg){ let t=document.getElementById("toast"); if(!t){ t=document.createElement("div"); t.id="toast"; t.className="toast"; document.body.appendChild(t);} t.textContent=msg; t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true,2600); }
+document.addEventListener("click", async e=>{
+  const s=e.target.closest("#sharebtn"); if(!s) return;
+  const url=shareUrl();
+  try{ await navigator.clipboard.writeText(url); toast("Share link copied. Send it to merge your picks into another phone."); }
+  catch(err){ const box=document.getElementById("sharebox"); box.hidden=false; box.value=url; box.select(); }
+});
 picks = loadPicks(); db = undefined; canWrite = true;
+const merged = mergeFromHash();
 renderAll();
+if(merged) toast(`Merged ${merged} pick${merged===1?"":"s"} from the link.`);
 </script>
 
 </body>

@@ -118,7 +118,7 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,34px);lin
 <div class="top">
   <div>
     <h1>Tokyo Family Weekend</h1>
-    <p>Friday to Monday from ENT TERRACE Ginza. Blue-edged rows are booked; <b>Mark booked</b> on any idea moves it there once you have a reservation. Tap <b>Yes</b>, <b>?</b> or <b>No</b> on the rest and the choice is saved in this browser. <b>Copy share link</b> sends your picks to another phone, where they merge in.</p>
+    <p>Friday to Monday from ENT TERRACE Ginza. Blue-edged rows are booked; <b>Mark booked</b> on any idea moves it there once you have a reservation. Tap <b>Yes</b>, <b>?</b> or <b>No</b> on the rest and the choice is shared through the Picks tab of the Japan Trip sheet, so every phone sees it within a few seconds. <b>Copy share link</b> is the offline fallback.</p>
   </div>
   <div class="tallywrap"><div class="tally" id="tally"></div><button type="button" class="pill share" id="sharebtn">Copy share link</button><textarea id="sharebox" class="sharebox" hidden readonly aria-label="Share link"></textarea></div>
 </div>
@@ -248,7 +248,7 @@ function renderTally(){
   const yes = ideasList.filter(p=>picks[p.id]?.state==="yes").length;
   const maybe = ideasList.filter(p=>picks[p.id]?.state==="maybe").length;
   const no = ideasList.filter(p=>picks[p.id]?.state==="no").length;
-  t.innerHTML = `<span class="pill" style="color:var(--ink);background:var(--ink-soft);border-color:transparent"><b>${bookedN}</b> booked</span><span class="pill yes"><b>${yes}</b> yes</span><span class="pill maybe"><b>${maybe}</b> maybe</span><span class="pill"><b>${ideasList.length-yes-maybe-no}</b> undecided</span><span class="pill sync" id="syncpill">Saved in this browser</span>`;
+  t.innerHTML = `<span class="pill" style="color:var(--ink);background:var(--ink-soft);border-color:transparent"><b>${bookedN}</b> booked</span><span class="pill yes"><b>${yes}</b> yes</span><span class="pill maybe"><b>${maybe}</b> maybe</span><span class="pill"><b>${ideasList.length-yes-maybe-no}</b> undecided</span><span class="pill sync" id="syncpill">${syncLabel()}</span>`;
 }
 function renderTabs(){
   const el = document.getElementById("tabs"); el.innerHTML="";
@@ -312,15 +312,42 @@ window.addEventListener("hashchange", ()=>{ const h=location.hash.replace("#",""
 const KEY="tokyo-trip-picks-v1";
 function loadPicks(){ try{ return JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){ return {}; } }
 function savePicks(){ try{ localStorage.setItem(KEY, JSON.stringify(picks)); }catch(e){} }
-async function writeDoc(id, body){ if(body) picks[id]=body; else delete picks[id]; savePicks(); renderAll(); }
+// A cleared pick is kept as a tombstone {at} so that timestamps decide every merge.
+async function writeDoc(id, body){ picks[id]=body; savePicks(); renderAll(); pushWrite({id, doc: body}); }
 function nextDoc(id, patch){
   const cur = Object.assign({}, picks[id]||{}, patch);
   if(cur.state===null) delete cur.state;
   if(cur.booked===null) delete cur.booked;
-  if(cur.state===undefined && cur.booked===undefined) return null;
   cur.at = new Date().toISOString();
   return cur;
 }
+// ---------- shared store: Google Apps Script web app bound to the Japan Trip sheet
+const API = "";
+let syncState = API ? "connecting" : "local", lastSync = null, inflight = 0;
+function newer(a,b){ return String(a?.at||"") > String(b?.at||""); }
+function mergeIncoming(incoming){ let n=0; for(const [id,doc] of Object.entries(incoming||{})){ if(!byId[id]||!doc||typeof doc!=="object") continue; if(!picks[id] || newer(doc,picks[id])){ picks[id]=doc; n++; } } return n; }
+async function pullPicks(){
+  if(!API || document.visibilityState==="hidden") return;
+  try{ const r=await fetch(API+(API.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"}); const j=await r.json();
+    if(j && j.ok){ const n=mergeIncoming(j.picks); if(n){ savePicks(); renderAll(); } lastSync=new Date(); syncState="ok"; } else syncState="error";
+  }catch(e){ syncState="error"; }
+  renderTally();
+}
+async function pushWrite(w){
+  if(!API) return; inflight++; renderTally();
+  try{ const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({writes:[w]})}); const j=await r.json();
+    if(j && j.ok){ if(mergeIncoming(j.picks)){ savePicks(); renderAll(); } lastSync=new Date(); syncState="ok"; } else syncState="error";
+  }catch(e){ syncState="error"; }
+  inflight--; renderTally();
+}
+function syncLabel(){
+  if(!API) return "Saved in this browser";
+  if(inflight) return "Saving…";
+  if(syncState==="connecting") return "Connecting to the shared sheet…";
+  if(syncState==="error") return "Can't reach the shared sheet; saved here, will retry";
+  return "Shared via Google Sheet · synced "+(lastSync?lastSync.toTimeString().slice(0,5):"");
+}
+if(API){ setInterval(pullPicks, 15000); document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") pullPicks(); }); }
 async function setPick(id, s){ const cur = picks[id]?.state; await writeDoc(id, nextDoc(id, {state: cur===s ? null : s})); }
 async function setBooked(id){
   const p = byId[id]; const now = booked(p);
@@ -351,7 +378,8 @@ document.addEventListener("click", async e=>{
 picks = loadPicks(); db = undefined; canWrite = true;
 const merged = mergeFromHash();
 renderAll();
-if(merged) toast(`Merged ${merged} pick${merged===1?"":"s"} from the link.`);
+if(merged){ toast(`Merged ${merged} pick${merged===1?"":"s"} from the link.`); if(API){ const w=Object.entries(picks).map(([id,doc])=>({id,doc})); fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({writes:w})}).catch(()=>{}); } }
+pullPicks();
 </script>
 
 </body>

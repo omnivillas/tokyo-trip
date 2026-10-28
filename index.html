@@ -322,7 +322,7 @@ function nextDoc(id, patch){
   return cur;
 }
 // ---------- shared store: Google Apps Script web app bound to the Japan Trip sheet
-const API = "";
+const API = "https://script.google.com/macros/s/AKfycbzZ5b9Sin4Z2w5vYiQzKvRGQ7pkhDl1v45x8RKS93pube2-lxR4-UPAw0syMtcvkDfU/exec";
 let syncState = API ? "connecting" : "local", lastSync = null, inflight = 0;
 function newer(a,b){ return String(a?.at||"") > String(b?.at||""); }
 function mergeIncoming(incoming){ let n=0; for(const [id,doc] of Object.entries(incoming||{})){ if(!byId[id]||!doc||typeof doc!=="object") continue; if(!picks[id] || newer(doc,picks[id])){ picks[id]=doc; n++; } } return n; }

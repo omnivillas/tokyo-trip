@@ -11,7 +11,7 @@ var COL = { id: 0, state: 1, booked: 2, time: 3, day: 4, at: 5, by: 6, doc: 7 };
 
 // what a document may contain: key -> [type, max length]
 var FIELDS = {
-  state: ['s', 10], booked: ['b'], time: ['s', 20], day: ['s', 10], note: ['s', 600], who: ['s', 20], done: ['s', 10],
+  state: ['s', 10], booked: ['b'], time: ['s', 20], day: ['s', 10], note: ['s', 600], who: ['s', 20], done: ['s', 10], reserved: ['b'], resv: ['s', 10],
   custom: ['b'], name: ['s', 140], cat: ['s', 40], link: ['s', 500], address: ['s', 240], phone: ['s', 40], lat: ['n'], lng: ['n'], deleted: ['b'],
   spend: ['b'], amount: ['n'], label: ['s', 140],
   fridayDate: ['s', 10]

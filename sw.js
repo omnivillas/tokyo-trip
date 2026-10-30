@@ -1,5 +1,5 @@
 // Tokyo trip service worker: app shell offline + map tile cache.
-const SHELL = "tokyo-shell-20261030-0003";
+const SHELL = "tokyo-shell-20261030-0008";
 const TILES = "tokyo-tiles-v1";
 const ASSETS = ["./", "index.html", "manifest.webmanifest", "vendor/leaflet/leaflet.css", "vendor/leaflet/leaflet.js",
   "vendor/leaflet/images/marker-icon.png", "vendor/leaflet/images/marker-icon-2x.png", "vendor/leaflet/images/marker-shadow.png", "vendor/leaflet/images/layers.png", "vendor/leaflet/images/layers-2x.png",
